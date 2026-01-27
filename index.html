@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Slides Cropper</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        /* Theme Variables */
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --bg: #f8fafc;
+            --workspace-bg: #e2e8f0;
+            --sidebar: #ffffff;
+            --header: #ffffff;
+            --border: #e5e7eb;
+            --text: #334155;
+            --text-light: #64748b;
+            --card-bg: #ffffff;
+            --card-hover: #f9fafb;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --radius: 10px;
+        }
+
+        /* Dark Mode UI Variables */
+        body.dark-ui {
+            --bg: #0f172a;
+            --workspace-bg: #1e293b;
+            --sidebar: #1e293b;
+            --header: #1e293b;
+            --border: #334155;
+            --text: #f1f5f9;
+            --text-light: #94a3b8;
+            --card-bg: #0f172a;
+            --card-hover: #1e293b;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        /* Toolbar Styles */
+        header {
+            background: var(--header);
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+            z-index: 100;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+
+        .btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 0.5rem 0.85rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.15s ease;
+            color: var(--text);
+        }
+        .btn:hover { 
+            background: var(--card-hover); 
+            border-color: var(--text-light);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+        .btn:active { transform: translateY(0); }
+        .btn.primary { 
+            background: var(--primary); 
+            color: white; 
+            border: none;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+        }
+        .btn.primary:hover { 
+            background: var(--primary-hover); 
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+        }
+        .btn.active-mode {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            border-right: 1px solid var(--border);
+            padding-right: 1.25rem;
+        }
+        .toolbar-group:last-child { border: none; }
+
+        #page-info, #zoom-info {
+            font-variant-numeric: tabular-nums;
+            font-weight: 500;
+            font-size: 0.875rem;
+            color: var(--text-light);
+        }
+
+        /* Main Layout */
+        main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        #pdf-workspace {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            background: var(--workspace-bg);
+            padding: 3rem;
+            scroll-behavior: smooth;
+        }
+
+        .canvas-container {
+            position: relative;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+            background: white;
+            height: fit-content;
+            border-radius: 4px;
+        }
+
+        #pdf-canvas { display: block; border-radius: 4px; }
+
+        #crop-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+        }
+
+        /* Sidebar Styles */
+        #sidebar {
+            width: 340px;
+            background: var(--sidebar);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1rem;
+        }
+
+        #slides-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .slide-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .slide-card:hover { 
+            border-color: var(--text-light);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+        .slide-card.active { 
+            border-color: var(--primary); 
+            background: rgba(59, 130, 246, 0.05);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+        .slide-card:hover .delete-slide { opacity: 1; }
+        
+        .slide-thumb-container {
+            width: 100%;
+            background: #94a3b8;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border-radius: 6px;
+        }
+
+        .slide-thumb-container canvas {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .slide-meta {
+            margin-top: 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-light);
+        }
+
+        .delete-slide {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            opacity: 0;
+            z-index: 10;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            box-shadow: var(--shadow);
+        }
+
+        /* Settings Panel */
+        #settings-panel {
+            padding: 1.25rem;
+            border-top: 1px solid var(--border);
+            background: var(--header);
+            font-size: 0.875rem;
+        }
+        .settings-row {
+            margin-bottom: 0.85rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .settings-row label { font-weight: 500; color: var(--text-light); }
+        select, input[type="number"] {
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.875rem;
+            outline: none;
+            background: var(--card-bg);
+            color: var(--text);
+        }
+        select:focus, input:focus { border-color: var(--primary); }
+
+        /* Crop Visual */
+        .crop-box {
+            position: absolute;
+            border: 2px solid var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 2px;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.5);
+        }
+
+        .notification {
+            position: fixed;
+            bottom: 2.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 0.65rem 1.25rem;
+            border-radius: 99px;
+            box-shadow: var(--shadow-md);
+            z-index: 1000;
+            display: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translate(-50%, 100%); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            font-weight: 600;
+            backdrop-filter: blur(4px);
+            flex-direction: column;
+            gap: 1rem;
+            color: white;
+        }
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <span>Processing Document...</span>
+    </div>
+    <div id="notification" class="notification"></div>
+
+    <header>
+        <div class="toolbar-group">
+            <input type="file" id="pdf-upload" accept="application/pdf" style="display:none">
+            <button class="btn primary" onclick="document.getElementById('pdf-upload').click()">
+                📂 Open PDF
+            </button>
+            <button class="btn" id="btn-ui-mode" title="Toggle Website Dark Mode">🌙 UI Dark Mode</button>
+        </div>
+
+        <div class="toolbar-group">
+            <button class="btn" id="prev-page" title="Previous Page">◀</button>
+            <span id="page-info" style="min-width: 90px; text-align: center;">Page 0 / 0</span>
+            <button class="btn" id="next-page" title="Next Page">▶</button>
+        </div>
+
+        <div class="toolbar-group">
+            <button class="btn" id="zoom-out" title="Zoom Out">−</button>
+            <span id="zoom-info" style="min-width: 60px; text-align: center;">100%</span>
+            <button class="btn" id="zoom-in" title="Zoom In">+</button>
+        </div>
+
+        <div class="toolbar-group">
+            <button class="btn" id="btn-crop-mode" title="Toggle Crop Mode (C)">✂️ Crop Tool</button>
+            <button class="btn" id="btn-auto-mode" title="Automatically create a slide for every crop">🪄 Auto Slide Mode</button>
+            <button class="btn" id="btn-add-as-new" title="Add current crops to a new slide">➕ Add as New Slide</button>
+        </div>
+
+        <div style="margin-left: auto;" class="toolbar-group">
+            <button class="btn" id="export-pdf" title="Export to PDF">🚀 Export Slides</button>
+        </div>
+    </header>
+
+    <main>
+        <div id="pdf-workspace">
+            <div id="canvas-wrapper" class="canvas-container">
+                <canvas id="pdf-canvas"></canvas>
+                <div id="crop-overlay"></div>
+            </div>
+        </div>
+
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <span>Slides</span>
+                <button class="btn" style="padding: 4px 8px;" onclick="slideManager.createNewSlide()">+ New</button>
+            </div>
+            <div id="slides-list"></div>
+            
+            <div id="settings-panel">
+                <div class="settings-row">
+                    <label>Aspect Ratio</label>
+                    <select id="setting-aspect">
+                        <option value="1.777">16:9</option>
+                        <option value="1.333">4:3</option>
+                    </select>
+                </div>
+                <div class="settings-row">
+                    <label>Margins</label>
+                    <input type="number" id="setting-margin" value="40" min="0" style="width: 60px;">
+                </div>
+                <div class="settings-row">
+                    <label>Spacing</label>
+                    <input type="number" id="setting-spacing" value="20" min="0" style="width: 60px;">
+                </div>
+                <div class="settings-row">
+                    <label>Align</label>
+                    <select id="setting-align">
+                        <option value="center">Center</option>
+                        <option value="top">Top</option>
+                        <option value="bottom">Bottom</option>
+                    </select>
+                </div>
+                <div class="settings-row">
+                    <label>Dark Slides Mode</label>
+                    <input type="checkbox" id="setting-dark">
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        /**
+         * PDF RENDERING ENGINE
+         */
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        const state = {
+            pdfDoc: null,
+            pageNum: 1,
+            scale: 1.5,
+            isCropping: false,
+            autoSlideMode: false,
+            isUIDark: false,
+            activeCrops: [],
+            isDragging: false,
+            startPos: { x: 0, y: 0 },
+            currentCrop: null
+        };
+
+        const canvas = document.getElementById('pdf-canvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('crop-overlay');
+
+        async function renderPage(num) {
+            if (!state.pdfDoc) return;
+            
+            const page = await state.pdfDoc.getPage(num);
+            const viewport = page.getViewport({ scale: state.scale });
+
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            overlay.style.width = canvas.width + 'px';
+            overlay.style.height = canvas.height + 'px';
+            overlay.style.pointerEvents = state.isCropping ? 'all' : 'none';
+
+            const renderCtx = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+
+            await page.render(renderCtx).promise;
+            
+            document.getElementById('page-info').textContent = `Page ${num} / ${state.pdfDoc.numPages}`;
+            document.getElementById('zoom-info').textContent = `${Math.round(state.scale * 100)}%`;
+            
+            if (!state.isCropping) clearCrops();
+        }
+
+        document.getElementById('pdf-upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('loading-overlay').style.display = 'flex';
+            const reader = new FileReader();
+            reader.onload = async function() {
+                try {
+                    const typedarray = new Uint8Array(this.result);
+                    state.pdfDoc = await pdfjsLib.getDocument(typedarray).promise;
+                    state.pageNum = 1;
+                    await renderPage(state.pageNum);
+                    showNotification("PDF Loaded Successfully");
+                } catch(err) {
+                    showNotification("Error loading PDF");
+                }
+                document.getElementById('loading-overlay').style.display = 'none';
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        document.getElementById('prev-page').onclick = () => { if (state.pageNum > 1) { state.pageNum--; renderPage(state.pageNum); } };
+        document.getElementById('next-page').onclick = () => { if (state.pageNum < state.pdfDoc?.numPages) { state.pageNum++; renderPage(state.pageNum); } };
+        document.getElementById('zoom-in').onclick = () => { state.scale += 0.25; renderPage(state.pageNum); };
+        document.getElementById('zoom-out').onclick = () => { if (state.scale > 0.5) { state.scale -= 0.25; renderPage(state.pageNum); } };
+
+        // UI Dark Mode Toggle
+        document.getElementById('btn-ui-mode').onclick = (e) => {
+            state.isUIDark = !state.isUIDark;
+            document.body.classList.toggle('dark-ui', state.isUIDark);
+            e.target.classList.toggle('active-mode', state.isUIDark);
+            e.target.innerText = state.isUIDark ? '☀️ UI Light Mode' : '🌙 UI Dark Mode';
+            // Refresh previews as they exist in UI space
+            slideManager.renderSlidesList();
+        };
+
+        /**
+         * CROP SYSTEM
+         */
+        function clearCrops() {
+            state.activeCrops = [];
+            overlay.innerHTML = '';
+        }
+
+        overlay.onmousedown = (e) => {
+            if (!state.isCropping) return;
+            state.isDragging = true;
+            const rect = overlay.getBoundingClientRect();
+            state.startPos = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+
+            state.currentCrop = document.createElement('div');
+            state.currentCrop.className = 'crop-box';
+            overlay.appendChild(state.currentCrop);
+        };
+
+        window.onmousemove = (e) => {
+            if (!state.isDragging || !state.currentCrop) return;
+            const rect = overlay.getBoundingClientRect();
+            const curX = e.clientX - rect.left;
+            const curY = e.clientY - rect.top;
+
+            const x = Math.min(curX, state.startPos.x);
+            const y = Math.min(curY, state.startPos.y);
+            const w = Math.abs(curX - state.startPos.x);
+            const h = Math.abs(curY - state.startPos.y);
+
+            state.currentCrop.style.left = x + 'px';
+            state.currentCrop.style.top = y + 'px';
+            state.currentCrop.style.width = w + 'px';
+            state.currentCrop.style.height = h + 'px';
+        };
+
+        window.onmouseup = () => {
+            if (!state.isDragging || !state.currentCrop) return;
+            state.isDragging = false;
+            
+            const rect = state.currentCrop.getBoundingClientRect();
+            const overlayRect = overlay.getBoundingClientRect();
+            
+            const crop = {
+                x: (rect.left - overlayRect.left),
+                y: (rect.top - overlayRect.top),
+                w: rect.width,
+                h: rect.height,
+                scale: state.scale
+            };
+
+            if (crop.w > 5 && crop.h > 5) {
+                if (state.autoSlideMode) {
+                    slideManager.addSingleCropAsNewSlide(crop);
+                    state.currentCrop.remove();
+                    showNotification("Slide Auto-Created ✨");
+                } else {
+                    state.activeCrops.push(crop);
+                }
+            } else {
+                state.currentCrop.remove();
+            }
+            state.currentCrop = null;
+        };
+
+        document.getElementById('btn-crop-mode').onclick = (e) => {
+            state.isCropping = !state.isCropping;
+            e.target.classList.toggle('active-mode', state.isCropping);
+            overlay.style.pointerEvents = state.isCropping ? 'all' : 'none';
+            if (!state.isCropping) clearCrops();
+        };
+
+        document.getElementById('btn-auto-mode').onclick = (e) => {
+            state.autoSlideMode = !state.autoSlideMode;
+            e.target.classList.toggle('active-mode', state.autoSlideMode);
+            if (state.autoSlideMode && !state.isCropping) {
+                document.getElementById('btn-crop-mode').click();
+            }
+        };
+
+        /**
+         * LAYOUT ENGINE
+         */
+        function calculateSlideLayout(slide, slideW, slideH, settings) {
+            const { margin, spacing, align } = settings;
+            const availableW = slideW - (margin * 2);
+            const availableH = slideH - (margin * 2);
+
+            let totalH = 0;
+            const crops = slide.crops.map(crop => {
+                const scaleW = availableW / crop.w;
+                const drawW = availableW;
+                const drawH = crop.h * scaleW;
+                totalH += drawH;
+                return { ...crop, drawW, drawH };
+            });
+
+            if (crops.length > 0) totalH += (crops.length - 1) * spacing;
+
+            let shrink = 1;
+            if (totalH > availableH && crops.length > 0) {
+                shrink = availableH / totalH;
+                totalH = availableH;
+            }
+
+            let currentY = margin;
+            if (align === 'center') currentY = (slideH - totalH) / 2;
+            else if (align === 'bottom') currentY = slideH - margin - totalH;
+
+            return crops.map(c => {
+                const finalW = c.drawW * shrink;
+                const finalH = c.drawH * shrink;
+                const res = {
+                    dataUrl: c.dataUrl,
+                    x: (slideW - finalW) / 2,
+                    y: currentY,
+                    w: finalW,
+                    h: finalH
+                };
+                currentY += finalH + (spacing * shrink);
+                return res;
+            });
+        }
+
+        async function renderSlideToCanvas(canvas, slide, settings) {
+            const ctx = canvas.getContext('2d');
+            const { isDark } = settings;
+            ctx.fillStyle = isDark ? '#1a1a1a' : '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const layout = calculateSlideLayout(slide, canvas.width, canvas.height, settings);
+            for (const item of layout) {
+                const img = await loadImage(item.dataUrl);
+                if (isDark) {
+                    const temp = document.createElement('canvas');
+                    temp.width = img.width;
+                    temp.height = img.height;
+                    const tCtx = temp.getContext('2d');
+                    tCtx.filter = 'invert(1) hue-rotate(180deg)';
+                    tCtx.drawImage(img, 0, 0);
+                    ctx.drawImage(temp, item.x, item.y, item.w, item.h);
+                } else {
+                    ctx.drawImage(img, item.x, item.y, item.w, item.h);
+                }
+            }
+        }
+
+        function loadImage(url) {
+            return new Promise(r => { const img = new Image(); img.onload = () => r(img); img.src = url; });
+        }
+
+        /**
+         * SLIDE MANAGER
+         */
+        const slideManager = {
+            slides: [],
+            activeSlideIndex: -1,
+
+            getSettings() {
+                return {
+                    aspectRatio: parseFloat(document.getElementById('setting-aspect').value),
+                    margin: parseInt(document.getElementById('setting-margin').value),
+                    spacing: parseInt(document.getElementById('setting-spacing').value),
+                    align: document.getElementById('setting-align').value,
+                    isDark: document.getElementById('setting-dark').checked
+                };
+            },
+
+            createNewSlide() {
+                const newSlide = { id: Date.now(), crops: [] };
+                this.slides.push(newSlide);
+                this.activeSlideIndex = this.slides.length - 1;
+                this.renderSlidesList();
+            },
+
+            addCropsToNewSlide() {
+                if (state.activeCrops.length === 0) {
+                    showNotification("Draw a crop box first!");
+                    return;
+                }
+                this.createNewSlide();
+                this.addCurrentCropsToSlide();
+            },
+
+            addSingleCropAsNewSlide(crop) {
+                const data = this.extractCropData(crop);
+                const newSlide = { id: Date.now(), crops: [data] };
+                this.slides.push(newSlide);
+                this.activeSlideIndex = this.slides.length - 1;
+                this.renderSlidesList();
+            },
+
+            extractCropData(crop) {
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = crop.w;
+                tempCanvas.height = crop.h;
+                tempCtx.drawImage(canvas, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
+                // REDUCED FILE SIZE: Use JPEG with 0.8 compression
+                return {
+                    dataUrl: tempCanvas.toDataURL('image/jpeg', 0.8),
+                    w: crop.w,
+                    h: crop.h
+                };
+            },
+
+            addCurrentCropsToSlide() {
+                state.activeCrops.forEach(crop => {
+                    this.slides[this.activeSlideIndex].crops.push(this.extractCropData(crop));
+                });
+                clearCrops();
+                this.renderSlidesList();
+            },
+
+            deleteSlide(index, event) {
+                event.stopPropagation();
+                this.slides.splice(index, 1);
+                if (this.activeSlideIndex >= this.slides.length) this.activeSlideIndex = this.slides.length - 1;
+                this.renderSlidesList();
+            },
+
+            async renderSlidesList() {
+                const container = document.getElementById('slides-list');
+                const settings = this.getSettings();
+                container.innerHTML = '';
+
+                for (let i = 0; i < this.slides.length; i++) {
+                    const slide = this.slides[i];
+                    const card = document.createElement('div');
+                    card.className = `slide-card ${i === this.activeSlideIndex ? 'active' : ''}`;
+                    card.onclick = () => {
+                        this.activeSlideIndex = i;
+                        this.renderSlidesList();
+                    };
+
+                    const thumbContainer = document.createElement('div');
+                    thumbContainer.className = 'slide-thumb-container';
+                    
+                    const thumbCanvas = document.createElement('canvas');
+                    thumbCanvas.width = 300;
+                    thumbCanvas.height = 300 / settings.aspectRatio;
+                    
+                    await renderSlideToCanvas(thumbCanvas, slide, settings);
+                    thumbContainer.appendChild(thumbCanvas);
+
+                    const meta = document.createElement('div');
+                    meta.className = 'slide-meta';
+                    meta.innerHTML = `<span>SLIDE ${i + 1}</span><span>${slide.crops.length} SNIPPETS</span>`;
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = 'delete-slide';
+                    delBtn.innerHTML = '&times;';
+                    delBtn.onclick = (e) => this.deleteSlide(i, e);
+
+                    card.appendChild(delBtn);
+                    card.appendChild(thumbContainer);
+                    card.appendChild(meta);
+                    container.appendChild(card);
+                }
+            }
+        };
+
+        ['setting-aspect', 'setting-margin', 'setting-spacing', 'setting-align', 'setting-dark'].forEach(id => {
+            document.getElementById(id).onchange = () => slideManager.renderSlidesList();
+        });
+
+        document.getElementById('btn-add-as-new').onclick = () => slideManager.addCropsToNewSlide();
+
+        /**
+         * EXPORT ENGINE
+         */
+        async function exportToPDF() {
+            if (slideManager.slides.length === 0) return;
+            document.getElementById('loading-overlay').style.display = 'flex';
+            
+            const { jsPDF } = window.jspdf;
+            const settings = slideManager.getSettings();
+            const slideWidth = 1920;
+            const slideHeight = slideWidth / settings.aspectRatio;
+
+            const doc = new jsPDF({
+                orientation: settings.aspectRatio > 1 ? 'landscape' : 'portrait',
+                unit: 'pt',
+                format: [slideWidth, slideHeight]
+            });
+
+            for (let i = 0; i < slideManager.slides.length; i++) {
+                const slide = slideManager.slides[i];
+                if (i > 0) doc.addPage([slideWidth, slideHeight]);
+
+                if (settings.isDark) {
+                    doc.setFillColor(26, 26, 26);
+                    doc.rect(0, 0, slideWidth, slideHeight, 'F');
+                }
+
+                const layout = calculateSlideLayout(slide, slideWidth, slideHeight, settings);
+                for (const item of layout) {
+                    let imgData = item.dataUrl;
+                    
+                    // Note: Snippets are already JPEGs at this point
+                    if (settings.isDark) {
+                        const img = await loadImage(item.dataUrl);
+                        const temp = document.createElement('canvas');
+                        temp.width = img.width;
+                        temp.height = img.height;
+                        const tCtx = temp.getContext('2d');
+                        tCtx.filter = 'invert(1) hue-rotate(180deg)';
+                        tCtx.drawImage(img, 0, 0);
+                        // Convert inverted canvas back to compressed JPEG for PDF size reduction
+                        imgData = temp.toDataURL('image/jpeg', 0.8);
+                    }
+                    
+                    // COMPRESSION: Use JPEG format for PDF inclusion
+                    doc.addImage(imgData, 'JPEG', item.x, item.y, item.w, item.h);
+                }
+            }
+
+            doc.save('presentation.pdf');
+            document.getElementById('loading-overlay').style.display = 'none';
+            showNotification("Slides Exported! 🚀");
+        }
+
+        document.getElementById('export-pdf').onclick = exportToPDF;
+
+        function showNotification(msg) {
+            const el = document.getElementById('notification');
+            el.innerText = msg;
+            el.style.display = 'block';
+            el.style.opacity = '1';
+            setTimeout(() => { el.style.opacity = '0'; setTimeout(() => { el.style.display = 'none'; }, 300); }, 2500);
+        }
+
+        // Hotkeys
+        window.onkeydown = (e) => {
+            if (e.key.toLowerCase() === 'c') document.getElementById('btn-crop-mode').click();
+            if (e.key === 'ArrowRight') document.getElementById('next-page').click();
+            if (e.key === 'ArrowLeft') document.getElementById('prev-page').click();
+        }
+
+        slideManager.createNewSlide();
+    </script>
+</body>
+</html>
