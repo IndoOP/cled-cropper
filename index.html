@@ -433,6 +433,9 @@
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+        // Constants for relative scaling
+        const REFERENCE_WIDTH = 1000; // Base "virtual" width for margin/spacing calculations
+
         const state = {
             pdfDoc: null,
             pageNum: 1,
@@ -508,7 +511,6 @@
             document.body.classList.toggle('dark-ui', state.isUIDark);
             e.target.classList.toggle('active-mode', state.isUIDark);
             e.target.innerText = state.isUIDark ? '☀️ UI Light Mode' : '🌙 UI Dark Mode';
-            // Refresh previews as they exist in UI space
             slideManager.renderSlidesList();
         };
 
@@ -599,7 +601,12 @@
          * LAYOUT ENGINE
          */
         function calculateSlideLayout(slide, slideW, slideH, settings) {
-            const { margin, spacing, align } = settings;
+            // SCALE SETTINGS RELATIVE TO SLIDE WIDTH
+            const scaleFactor = slideW / REFERENCE_WIDTH;
+            const margin = settings.margin * scaleFactor;
+            const spacing = settings.spacing * scaleFactor;
+            const align = settings.align;
+
             const availableW = slideW - (margin * 2);
             const availableH = slideH - (margin * 2);
 
@@ -713,7 +720,6 @@
                 tempCanvas.width = crop.w;
                 tempCanvas.height = crop.h;
                 tempCtx.drawImage(canvas, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
-                // REDUCED FILE SIZE: Use JPEG with 0.8 compression
                 return {
                     dataUrl: tempCanvas.toDataURL('image/jpeg', 0.8),
                     w: crop.w,
@@ -810,11 +816,11 @@
                     doc.rect(0, 0, slideWidth, slideHeight, 'F');
                 }
 
+                // calculateSlideLayout now handles high-res scaling relative to REFERENCE_WIDTH
                 const layout = calculateSlideLayout(slide, slideWidth, slideHeight, settings);
                 for (const item of layout) {
                     let imgData = item.dataUrl;
                     
-                    // Note: Snippets are already JPEGs at this point
                     if (settings.isDark) {
                         const img = await loadImage(item.dataUrl);
                         const temp = document.createElement('canvas');
@@ -823,11 +829,9 @@
                         const tCtx = temp.getContext('2d');
                         tCtx.filter = 'invert(1) hue-rotate(180deg)';
                         tCtx.drawImage(img, 0, 0);
-                        // Convert inverted canvas back to compressed JPEG for PDF size reduction
                         imgData = temp.toDataURL('image/jpeg', 0.8);
                     }
                     
-                    // COMPRESSION: Use JPEG format for PDF inclusion
                     doc.addImage(imgData, 'JPEG', item.x, item.y, item.w, item.h);
                 }
             }
