@@ -107,7 +107,6 @@
             border-color: var(--primary);
             color: var(--primary);
         }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
         .toolbar-group {
             display: flex;
@@ -118,7 +117,27 @@
         }
         .toolbar-group:last-child { border: none; }
 
-        #page-info, #zoom-info {
+        .page-navigation {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+        
+        .page-input {
+            width: 45px;
+            text-align: center;
+            padding: 4px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--card-bg);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        #zoom-info {
             font-variant-numeric: tabular-nums;
             font-weight: 500;
             font-size: 0.875rem;
@@ -162,7 +181,7 @@
 
         /* Sidebar Styles */
         #sidebar {
-            width: 340px;
+            width: 380px;
             background: var(--sidebar);
             border-left: 1px solid var(--border);
             display: flex;
@@ -212,7 +231,7 @@
         
         .slide-thumb-container {
             width: 100%;
-            background: #94a3b8;
+            background: #cbd5e1;
             border: 1px solid var(--border);
             display: flex;
             justify-content: center;
@@ -262,16 +281,53 @@
             padding: 1.25rem;
             border-top: 1px solid var(--border);
             background: var(--header);
-            font-size: 0.875rem;
+            font-size: 0.825rem;
+            overflow-y: auto;
+            max-height: 60%;
         }
+        .settings-section-title {
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            color: var(--text-light);
+            margin: 1.25rem 0 0.75rem 0;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .settings-section-title:first-child { margin-top: 0; }
+
         .settings-row {
-            margin-bottom: 0.85rem;
+            margin-bottom: 0.75rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 12px;
         }
-        .settings-row label { font-weight: 500; color: var(--text-light); }
-        select, input[type="number"] {
+        .settings-row label { font-weight: 500; color: var(--text); white-space: nowrap; }
+        
+        .margin-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+        .margin-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+        .margin-item label { font-size: 0.7rem; color: var(--text-light); }
+        .margin-item input { width: 45px; border: none; background: transparent; text-align: right; font-weight: 600; }
+
+        select, input[type="number"], input[type="text"], input[type="color"], input[type="range"] {
             padding: 6px 8px;
             border: 1px solid var(--border);
             border-radius: 6px;
@@ -281,7 +337,16 @@
             background: var(--card-bg);
             color: var(--text);
         }
+        input[type="range"] { padding: 0; cursor: pointer; }
+        input[type="color"] {
+            padding: 2px;
+            width: 40px;
+            height: 30px;
+            cursor: pointer;
+        }
         select:focus, input:focus { border-color: var(--primary); }
+
+        .res-input { width: 70px; text-align: center; }
 
         /* Crop Visual */
         .crop-box {
@@ -353,12 +418,16 @@
             <button class="btn primary" onclick="document.getElementById('pdf-upload').click()">
                 📂 Open PDF
             </button>
-            <button class="btn" id="btn-ui-mode" title="Toggle Website Dark Mode">🌙 UI Dark Mode</button>
+            <button class="btn" id="btn-ui-mode" title="Toggle Website Dark Mode">🌙 UI Mode</button>
         </div>
 
         <div class="toolbar-group">
             <button class="btn" id="prev-page" title="Previous Page">◀</button>
-            <span id="page-info" style="min-width: 90px; text-align: center;">Page 0 / 0</span>
+            <div class="page-navigation">
+                <span>Page</span>
+                <input type="number" id="page-input" class="page-input" value="0">
+                <span id="page-total">of 0</span>
+            </div>
             <button class="btn" id="next-page" title="Next Page">▶</button>
         </div>
 
@@ -370,12 +439,12 @@
 
         <div class="toolbar-group">
             <button class="btn" id="btn-crop-mode" title="Toggle Crop Mode (C)">✂️ Crop Tool</button>
-            <button class="btn" id="btn-auto-mode" title="Automatically create a slide for every crop">🪄 Auto Slide Mode</button>
-            <button class="btn" id="btn-add-as-new" title="Add current crops to a new slide">➕ Add as New Slide</button>
+            <button class="btn" id="btn-auto-mode" title="Automatically create a slide for every crop">🪄 Auto Slide</button>
+            <button class="btn" id="btn-add-as-new" title="Add current crops to a new slide">➕ Add Slide</button>
         </div>
 
         <div style="margin-left: auto;" class="toolbar-group">
-            <button class="btn" id="export-pdf" title="Export to PDF">🚀 Export Slides</button>
+            <button class="btn" id="export-pdf" title="Export to PDF">🚀 Export PDF</button>
         </div>
     </header>
 
@@ -389,38 +458,81 @@
 
         <aside id="sidebar">
             <div class="sidebar-header">
-                <span>Slides</span>
-                <button class="btn" style="padding: 4px 8px;" onclick="slideManager.createNewSlide()">+ New</button>
+                <span>Slides Preview</span>
+                <button class="btn" style="padding: 4px 8px;" onclick="slideManager.createNewSlide()">+ New Slide</button>
             </div>
             <div id="slides-list"></div>
             
             <div id="settings-panel">
+                <div class="settings-section-title">Canvas Resolution</div>
                 <div class="settings-row">
-                    <label>Aspect Ratio</label>
-                    <select id="setting-aspect">
-                        <option value="1.777">16:9</option>
-                        <option value="1.333">4:3</option>
+                    <label>Preset</label>
+                    <select id="setting-preset">
+                        <option value="1920:1080">16:9 (HD)</option>
+                        <option value="1600:1200">4:3 (SD)</option>
+                        <option value="1080:1080">1:1 (Square)</option>
+                        <option value="1080:1920">9:16 (Story)</option>
+                        <option value="custom">Custom</option>
                     </select>
                 </div>
                 <div class="settings-row">
-                    <label>Margins</label>
-                    <input type="number" id="setting-margin" value="40" min="0" style="width: 60px;">
+                    <label>Dimensions</label>
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <input type="number" id="setting-width" value="1920" class="res-input">
+                        <span>×</span>
+                        <input type="number" id="setting-height" value="1080" class="res-input">
+                    </div>
+                </div>
+
+                <div class="settings-section-title">Margins (px)</div>
+                <div class="margin-grid">
+                    <div class="margin-item"><label>Top</label><input type="number" id="setting-margin-top" value="60" min="0"></div>
+                    <div class="margin-item"><label>Right</label><input type="number" id="setting-margin-right" value="60" min="0"></div>
+                    <div class="margin-item"><label>Bottom</label><input type="number" id="setting-margin-bottom" value="60" min="0"></div>
+                    <div class="margin-item"><label>Left</label><input type="number" id="setting-margin-left" value="60" min="0"></div>
+                </div>
+
+                <div class="settings-section-title">Snippet Layout</div>
+                <div class="settings-row">
+                    <label>Width (%)</label>
+                    <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                        <input type="range" id="setting-content-scale" min="10" max="100" value="90" style="flex:1">
+                        <span id="label-content-scale" style="width:30px; text-align:right;">90%</span>
+                    </div>
                 </div>
                 <div class="settings-row">
-                    <label>Spacing</label>
-                    <input type="number" id="setting-spacing" value="20" min="0" style="width: 60px;">
-                </div>
-                <div class="settings-row">
-                    <label>Align</label>
-                    <select id="setting-align">
-                        <option value="center">Center</option>
+                    <label>Vertical Align</label>
+                    <select id="setting-v-align" style="flex:1">
                         <option value="top">Top</option>
+                        <option value="center" selected>Center</option>
                         <option value="bottom">Bottom</option>
                     </select>
                 </div>
                 <div class="settings-row">
+                    <label>Horizontal Align</label>
+                    <select id="setting-h-align" style="flex:1">
+                        <option value="left">Left</option>
+                        <option value="center" selected>Center</option>
+                        <option value="right">Right</option>
+                    </select>
+                </div>
+                <div class="settings-row">
+                    <label>Snippet Spacing</label>
+                    <input type="number" id="setting-spacing" value="30" min="0" style="width: 70px;">
+                </div>
+
+                <div class="settings-section-title">Appearance</div>
+                <div class="settings-row">
                     <label>Dark Slides Mode</label>
                     <input type="checkbox" id="setting-dark">
+                </div>
+                <div class="settings-row">
+                    <label>Light Theme Color</label>
+                    <input type="color" id="setting-color-light" value="#ffffff">
+                </div>
+                <div class="settings-row">
+                    <label>Dark Theme Color</label>
+                    <input type="color" id="setting-color-dark" value="#1a1a1a">
                 </div>
             </div>
         </aside>
@@ -433,8 +545,7 @@
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        // Constants for relative scaling
-        const REFERENCE_WIDTH = 1000; // Base "virtual" width for margin/spacing calculations
+        const REFERENCE_WIDTH = 1000; 
 
         const state = {
             pdfDoc: null,
@@ -455,7 +566,9 @@
 
         async function renderPage(num) {
             if (!state.pdfDoc) return;
-            
+            num = Math.max(1, Math.min(num, state.pdfDoc.numPages));
+            state.pageNum = num;
+
             const page = await state.pdfDoc.getPage(num);
             const viewport = page.getViewport({ scale: state.scale });
 
@@ -466,23 +579,26 @@
             overlay.style.height = canvas.height + 'px';
             overlay.style.pointerEvents = state.isCropping ? 'all' : 'none';
 
-            const renderCtx = {
-                canvasContext: ctx,
-                viewport: viewport
-            };
-
+            const renderCtx = { canvasContext: ctx, viewport: viewport };
             await page.render(renderCtx).promise;
             
-            document.getElementById('page-info').textContent = `Page ${num} / ${state.pdfDoc.numPages}`;
+            document.getElementById('page-input').value = num;
+            document.getElementById('page-total').textContent = `of ${state.pdfDoc.numPages}`;
             document.getElementById('zoom-info').textContent = `${Math.round(state.scale * 100)}%`;
             
             if (!state.isCropping) clearCrops();
         }
 
+        document.getElementById('page-input').onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const target = parseInt(e.target.value);
+                if (!isNaN(target)) renderPage(target);
+            }
+        };
+
         document.getElementById('pdf-upload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
             document.getElementById('loading-overlay').style.display = 'flex';
             const reader = new FileReader();
             reader.onload = async function() {
@@ -500,17 +616,15 @@
             reader.readAsArrayBuffer(file);
         });
 
-        document.getElementById('prev-page').onclick = () => { if (state.pageNum > 1) { state.pageNum--; renderPage(state.pageNum); } };
-        document.getElementById('next-page').onclick = () => { if (state.pageNum < state.pdfDoc?.numPages) { state.pageNum++; renderPage(state.pageNum); } };
+        document.getElementById('prev-page').onclick = () => { if (state.pageNum > 1) renderPage(state.pageNum - 1); };
+        document.getElementById('next-page').onclick = () => { if (state.pageNum < state.pdfDoc?.numPages) renderPage(state.pageNum + 1); };
         document.getElementById('zoom-in').onclick = () => { state.scale += 0.25; renderPage(state.pageNum); };
         document.getElementById('zoom-out').onclick = () => { if (state.scale > 0.5) { state.scale -= 0.25; renderPage(state.pageNum); } };
 
-        // UI Dark Mode Toggle
         document.getElementById('btn-ui-mode').onclick = (e) => {
             state.isUIDark = !state.isUIDark;
             document.body.classList.toggle('dark-ui', state.isUIDark);
             e.target.classList.toggle('active-mode', state.isUIDark);
-            e.target.innerText = state.isUIDark ? '☀️ UI Light Mode' : '🌙 UI Dark Mode';
             slideManager.renderSlidesList();
         };
 
@@ -526,11 +640,7 @@
             if (!state.isCropping) return;
             state.isDragging = true;
             const rect = overlay.getBoundingClientRect();
-            state.startPos = {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
-            };
-
+            state.startPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
             state.currentCrop = document.createElement('div');
             state.currentCrop.className = 'crop-box';
             overlay.appendChild(state.currentCrop);
@@ -541,12 +651,10 @@
             const rect = overlay.getBoundingClientRect();
             const curX = e.clientX - rect.left;
             const curY = e.clientY - rect.top;
-
             const x = Math.min(curX, state.startPos.x);
             const y = Math.min(curY, state.startPos.y);
             const w = Math.abs(curX - state.startPos.x);
             const h = Math.abs(curY - state.startPos.y);
-
             state.currentCrop.style.left = x + 'px';
             state.currentCrop.style.top = y + 'px';
             state.currentCrop.style.width = w + 'px';
@@ -556,10 +664,8 @@
         window.onmouseup = () => {
             if (!state.isDragging || !state.currentCrop) return;
             state.isDragging = false;
-            
             const rect = state.currentCrop.getBoundingClientRect();
             const overlayRect = overlay.getBoundingClientRect();
-            
             const crop = {
                 x: (rect.left - overlayRect.left),
                 y: (rect.top - overlayRect.top),
@@ -567,7 +673,6 @@
                 h: rect.height,
                 scale: state.scale
             };
-
             if (crop.w > 5 && crop.h > 5) {
                 if (state.autoSlideMode) {
                     slideManager.addSingleCropAsNewSlide(crop);
@@ -592,64 +697,84 @@
         document.getElementById('btn-auto-mode').onclick = (e) => {
             state.autoSlideMode = !state.autoSlideMode;
             e.target.classList.toggle('active-mode', state.autoSlideMode);
-            if (state.autoSlideMode && !state.isCropping) {
-                document.getElementById('btn-crop-mode').click();
-            }
+            if (state.autoSlideMode && !state.isCropping) document.getElementById('btn-crop-mode').click();
         };
 
         /**
          * LAYOUT ENGINE
          */
         function calculateSlideLayout(slide, slideW, slideH, settings) {
-            // SCALE SETTINGS RELATIVE TO SLIDE WIDTH
             const scaleFactor = slideW / REFERENCE_WIDTH;
-            const margin = settings.margin * scaleFactor;
+            
+            // Safe Area Margins
+            const mTop = settings.marginTop * scaleFactor;
+            const mBottom = settings.marginBottom * scaleFactor;
+            const mLeft = settings.marginLeft * scaleFactor;
+            const mRight = settings.marginRight * scaleFactor;
             const spacing = settings.spacing * scaleFactor;
-            const align = settings.align;
+            
+            const availableW = slideW - (mLeft + mRight);
+            const availableH = slideH - (mTop + mBottom);
 
-            const availableW = slideW - (margin * 2);
-            const availableH = slideH - (margin * 2);
+            // Calculate width based on requested content scale
+            const contentWidthPercent = settings.contentScale / 100;
+            const targetSnippetW = availableW * contentWidthPercent;
 
-            let totalH = 0;
+            let totalContentH = 0;
             const crops = slide.crops.map(crop => {
-                const scaleW = availableW / crop.w;
-                const drawW = availableW;
-                const drawH = crop.h * scaleW;
-                totalH += drawH;
+                const aspect = crop.w / crop.h;
+                const drawW = targetSnippetW;
+                const drawH = targetSnippetW / aspect;
+                totalContentH += drawH;
                 return { ...crop, drawW, drawH };
             });
 
-            if (crops.length > 0) totalH += (crops.length - 1) * spacing;
+            // Add spacing gaps
+            if (crops.length > 1) totalContentH += (crops.length - 1) * spacing;
 
-            let shrink = 1;
-            if (totalH > availableH && crops.length > 0) {
-                shrink = availableH / totalH;
-                totalH = availableH;
+            // Global shrink only if total height overflows available safe area
+            let groupShrink = 1;
+            if (totalContentH > availableH && crops.length > 0) {
+                groupShrink = availableH / totalContentH;
+                totalContentH = availableH;
             }
 
-            let currentY = margin;
-            if (align === 'center') currentY = (slideH - totalH) / 2;
-            else if (align === 'bottom') currentY = slideH - margin - totalH;
+            // Vertical Alignment Origin
+            let currentY = mTop;
+            if (settings.vAlign === 'center') {
+                currentY = mTop + (availableH - totalContentH) / 2;
+            } else if (settings.vAlign === 'bottom') {
+                currentY = slideH - mBottom - totalContentH;
+            }
 
             return crops.map(c => {
-                const finalW = c.drawW * shrink;
-                const finalH = c.drawH * shrink;
+                const finalW = c.drawW * groupShrink;
+                const finalH = c.drawH * groupShrink;
+                
+                // Horizontal Alignment Calculation
+                let finalX = mLeft;
+                if (settings.hAlign === 'center') {
+                    finalX = mLeft + (availableW - finalW) / 2;
+                } else if (settings.hAlign === 'right') {
+                    finalX = slideW - mRight - finalW;
+                }
+
                 const res = {
                     dataUrl: c.dataUrl,
-                    x: (slideW - finalW) / 2,
+                    x: finalX,
                     y: currentY,
                     w: finalW,
                     h: finalH
                 };
-                currentY += finalH + (spacing * shrink);
+                currentY += finalH + (spacing * groupShrink);
                 return res;
             });
         }
 
         async function renderSlideToCanvas(canvas, slide, settings) {
             const ctx = canvas.getContext('2d');
-            const { isDark } = settings;
-            ctx.fillStyle = isDark ? '#1a1a1a' : '#ffffff';
+            const { isDark, colorLight, colorDark } = settings;
+            ctx.fillStyle = isDark ? colorDark : colorLight;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             const layout = calculateSlideLayout(slide, canvas.width, canvas.height, settings);
@@ -657,8 +782,7 @@
                 const img = await loadImage(item.dataUrl);
                 if (isDark) {
                     const temp = document.createElement('canvas');
-                    temp.width = img.width;
-                    temp.height = img.height;
+                    temp.width = img.width; temp.height = img.height;
                     const tCtx = temp.getContext('2d');
                     tCtx.filter = 'invert(1) hue-rotate(180deg)';
                     tCtx.drawImage(img, 0, 0);
@@ -682,11 +806,19 @@
 
             getSettings() {
                 return {
-                    aspectRatio: parseFloat(document.getElementById('setting-aspect').value),
-                    margin: parseInt(document.getElementById('setting-margin').value),
-                    spacing: parseInt(document.getElementById('setting-spacing').value),
-                    align: document.getElementById('setting-align').value,
-                    isDark: document.getElementById('setting-dark').checked
+                    width: parseInt(document.getElementById('setting-width').value) || 1920,
+                    height: parseInt(document.getElementById('setting-height').value) || 1080,
+                    marginTop: parseInt(document.getElementById('setting-margin-top').value) || 0,
+                    marginBottom: parseInt(document.getElementById('setting-margin-bottom').value) || 0,
+                    marginLeft: parseInt(document.getElementById('setting-margin-left').value) || 0,
+                    marginRight: parseInt(document.getElementById('setting-margin-right').value) || 0,
+                    spacing: parseInt(document.getElementById('setting-spacing').value) || 0,
+                    contentScale: parseInt(document.getElementById('setting-content-scale').value) || 90,
+                    vAlign: document.getElementById('setting-v-align').value,
+                    hAlign: document.getElementById('setting-h-align').value,
+                    isDark: document.getElementById('setting-dark').checked,
+                    colorLight: document.getElementById('setting-color-light').value,
+                    colorDark: document.getElementById('setting-color-dark').value
                 };
             },
 
@@ -717,17 +849,13 @@
             extractCropData(crop) {
                 const tempCanvas = document.createElement('canvas');
                 const tempCtx = tempCanvas.getContext('2d');
-                tempCanvas.width = crop.w;
-                tempCanvas.height = crop.h;
+                tempCanvas.width = crop.w; tempCanvas.height = crop.h;
                 tempCtx.drawImage(canvas, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
-                return {
-                    dataUrl: tempCanvas.toDataURL('image/jpeg', 0.8),
-                    w: crop.w,
-                    h: crop.h
-                };
+                return { dataUrl: tempCanvas.toDataURL('image/jpeg', 0.8), w: crop.w, h: crop.h };
             },
 
             addCurrentCropsToSlide() {
+                if (this.activeSlideIndex === -1) this.createNewSlide();
                 state.activeCrops.forEach(crop => {
                     this.slides[this.activeSlideIndex].crops.push(this.extractCropData(crop));
                 });
@@ -746,45 +874,57 @@
                 const container = document.getElementById('slides-list');
                 const settings = this.getSettings();
                 container.innerHTML = '';
-
                 for (let i = 0; i < this.slides.length; i++) {
                     const slide = this.slides[i];
                     const card = document.createElement('div');
                     card.className = `slide-card ${i === this.activeSlideIndex ? 'active' : ''}`;
-                    card.onclick = () => {
-                        this.activeSlideIndex = i;
-                        this.renderSlidesList();
-                    };
+                    card.onclick = () => { this.activeSlideIndex = i; this.renderSlidesList(); };
 
                     const thumbContainer = document.createElement('div');
                     thumbContainer.className = 'slide-thumb-container';
-                    
                     const thumbCanvas = document.createElement('canvas');
-                    thumbCanvas.width = 300;
-                    thumbCanvas.height = 300 / settings.aspectRatio;
-                    
+                    const aspect = settings.width / settings.height;
+                    thumbCanvas.width = 300; thumbCanvas.height = 300 / aspect;
                     await renderSlideToCanvas(thumbCanvas, slide, settings);
                     thumbContainer.appendChild(thumbCanvas);
 
                     const meta = document.createElement('div');
                     meta.className = 'slide-meta';
-                    meta.innerHTML = `<span>SLIDE ${i + 1}</span><span>${slide.crops.length} SNIPPETS</span>`;
+                    meta.innerHTML = `<span>SLIDE ${i + 1}</span><span>${slide.crops.length} ITEMS</span>`;
 
                     const delBtn = document.createElement('button');
                     delBtn.className = 'delete-slide';
                     delBtn.innerHTML = '&times;';
                     delBtn.onclick = (e) => this.deleteSlide(i, e);
 
-                    card.appendChild(delBtn);
-                    card.appendChild(thumbContainer);
-                    card.appendChild(meta);
+                    card.appendChild(delBtn); card.appendChild(thumbContainer); card.appendChild(meta);
                     container.appendChild(card);
                 }
             }
         };
 
-        ['setting-aspect', 'setting-margin', 'setting-spacing', 'setting-align', 'setting-dark'].forEach(id => {
-            document.getElementById(id).onchange = () => slideManager.renderSlidesList();
+        // Resolution and UI Sync
+        document.getElementById('setting-content-scale').oninput = (e) => {
+            document.getElementById('label-content-scale').textContent = e.target.value + '%';
+            slideManager.renderSlidesList();
+        };
+
+        document.getElementById('setting-preset').onchange = (e) => {
+            const val = e.target.value;
+            if (val === 'custom') return;
+            const [w, h] = val.split(':');
+            document.getElementById('setting-width').value = w;
+            document.getElementById('setting-height').value = h;
+            slideManager.renderSlidesList();
+        };
+
+        ['setting-width', 'setting-height', 'setting-margin-top', 'setting-margin-bottom', 'setting-margin-left', 'setting-margin-right', 'setting-spacing', 'setting-v-align', 'setting-h-align', 'setting-dark', 'setting-color-light', 'setting-color-dark'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.onchange = () => {
+                if (id.includes('width') || id.includes('height')) document.getElementById('setting-preset').value = 'custom';
+                slideManager.renderSlidesList();
+            }
         });
 
         document.getElementById('btn-add-as-new').onclick = () => slideManager.addCropsToNewSlide();
@@ -793,16 +933,15 @@
          * EXPORT ENGINE
          */
         async function exportToPDF() {
-            if (slideManager.slides.length === 0) return;
+            if (slideManager.slides.length === 0) { showNotification("No slides to export!"); return; }
             document.getElementById('loading-overlay').style.display = 'flex';
-            
             const { jsPDF } = window.jspdf;
             const settings = slideManager.getSettings();
-            const slideWidth = 1920;
-            const slideHeight = slideWidth / settings.aspectRatio;
+            const slideWidth = settings.width;
+            const slideHeight = settings.height;
 
             const doc = new jsPDF({
-                orientation: settings.aspectRatio > 1 ? 'landscape' : 'portrait',
+                orientation: slideWidth > slideHeight ? 'landscape' : 'portrait',
                 unit: 'pt',
                 format: [slideWidth, slideHeight]
             });
@@ -810,28 +949,22 @@
             for (let i = 0; i < slideManager.slides.length; i++) {
                 const slide = slideManager.slides[i];
                 if (i > 0) doc.addPage([slideWidth, slideHeight]);
+                const activeBG = settings.isDark ? settings.colorDark : settings.colorLight;
+                doc.setFillColor(activeBG);
+                doc.rect(0, 0, slideWidth, slideHeight, 'F');
 
-                if (settings.isDark) {
-                    doc.setFillColor(26, 26, 26);
-                    doc.rect(0, 0, slideWidth, slideHeight, 'F');
-                }
-
-                // calculateSlideLayout now handles high-res scaling relative to REFERENCE_WIDTH
                 const layout = calculateSlideLayout(slide, slideWidth, slideHeight, settings);
                 for (const item of layout) {
                     let imgData = item.dataUrl;
-                    
                     if (settings.isDark) {
                         const img = await loadImage(item.dataUrl);
                         const temp = document.createElement('canvas');
-                        temp.width = img.width;
-                        temp.height = img.height;
+                        temp.width = img.width; temp.height = img.height;
                         const tCtx = temp.getContext('2d');
                         tCtx.filter = 'invert(1) hue-rotate(180deg)';
                         tCtx.drawImage(img, 0, 0);
                         imgData = temp.toDataURL('image/jpeg', 0.8);
                     }
-                    
                     doc.addImage(imgData, 'JPEG', item.x, item.y, item.w, item.h);
                 }
             }
@@ -848,11 +981,14 @@
             el.innerText = msg;
             el.style.display = 'block';
             el.style.opacity = '1';
-            setTimeout(() => { el.style.opacity = '0'; setTimeout(() => { el.style.display = 'none'; }, 300); }, 2500);
+            setTimeout(() => { 
+                el.style.opacity = '0'; 
+                setTimeout(() => { el.style.display = 'none'; }, 300); 
+            }, 2500);
         }
 
-        // Hotkeys
         window.onkeydown = (e) => {
+            if (e.target.tagName === 'INPUT') return;
             if (e.key.toLowerCase() === 'c') document.getElementById('btn-crop-mode').click();
             if (e.key === 'ArrowRight') document.getElementById('next-page').click();
             if (e.key === 'ArrowLeft') document.getElementById('prev-page').click();
