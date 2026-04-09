@@ -1,1000 +1,955 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF to Slides Cropper</title>
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <!-- Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <style>
-        /* Theme Variables */
-        :root {
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --bg: #f8fafc;
-            --workspace-bg: #e2e8f0;
-            --sidebar: #ffffff;
-            --header: #ffffff;
-            --border: #e5e7eb;
-            --text: #334155;
-            --text-light: #64748b;
-            --card-bg: #ffffff;
-            --card-hover: #f9fafb;
-            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-            --radius: 10px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Slides Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --primary:#6366f1;--primary-h:#4f46e5;--primary-l:rgba(99,102,241,.12);
+  --success:#10b981;--danger:#ef4444;
+  --bg:#0d0d14;--surface:#13131f;--surface2:#1a1a2e;--surface3:#21213a;
+  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.14);
+  --text:#e8e8f0;--text2:#8888aa;
+  --shadow:0 4px 24px rgba(0,0,0,.45);--radius:10px;--radius-sm:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;-webkit-font-smoothing:antialiased}
 
-        /* Dark Mode UI Variables */
-        body.dark-ui {
-            --bg: #0f172a;
-            --workspace-bg: #1e293b;
-            --sidebar: #1e293b;
-            --header: #1e293b;
-            --border: #334155;
-            --text: #f1f5f9;
-            --text-light: #94a3b8;
-            --card-bg: #0f172a;
-            --card-hover: #1e293b;
-            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3);
-        }
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 14px;height:52px;display:flex;align-items:center;gap:5px;flex-shrink:0;z-index:100}
+.logo{font-weight:700;font-size:13px;color:var(--primary);letter-spacing:-.3px;padding-right:12px;border-right:1px solid var(--border);margin-right:4px;white-space:nowrap}
+.logo span{color:var(--text2);font-weight:400}
+.sep{width:1px;height:22px;background:var(--border);margin:0 3px;flex-shrink:0}
+.btn{background:transparent;border:1px solid var(--border);padding:5px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:5px;color:var(--text);transition:all .15s;white-space:nowrap;font-family:'Inter',sans-serif;flex-shrink:0}
+.btn:hover{background:var(--surface3);border-color:var(--border2)}
+.btn.primary{background:var(--primary);border-color:transparent;color:#fff}
+.btn.primary:hover{background:var(--primary-h)}
+.btn.active{background:var(--primary-l);border-color:var(--primary);color:var(--primary)}
+.btn.danger{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:var(--danger)}
+.btn svg{width:13px;height:13px;flex-shrink:0}
+.spacer{flex:1}
+/* FIX 1: page input wider */
+.page-nav{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)}
+.page-input{width:52px;text-align:center;padding:5px 6px;border:1px solid var(--border);border-radius:4px;background:var(--surface3);color:var(--text);font-size:12px;font-family:'Inter',sans-serif;outline:none}
+.page-input:focus{border-color:var(--primary)}
+#zoom-info{font-size:12px;color:var(--text2);min-width:42px;text-align:center}
+.hs{display:flex;align-items:center;gap:4px}
 
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: 'Inter', -apple-system, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            -webkit-font-smoothing: antialiased;
-            transition: background-color 0.2s, color 0.2s;
-        }
+/* MAIN */
+main{display:flex;flex:1;overflow:hidden}
 
-        /* Toolbar Styles */
-        header {
-            background: var(--header);
-            padding: 0.75rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 1.25rem;
-            flex-wrap: wrap;
-            z-index: 100;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-        }
+/* WORKSPACE */
+#workspace{flex:1;overflow:auto;background:var(--bg);display:flex;justify-content:center;align-items:flex-start;padding:32px;position:relative}
+#canvas-wrapper{position:relative;box-shadow:0 0 0 1px rgba(255,255,255,.06),0 20px 60px rgba(0,0,0,.6);border-radius:6px;background:#fff;height:fit-content}
+#pdf-canvas{display:block;border-radius:6px}
+#crop-overlay{position:absolute;top:0;left:0;pointer-events:none;border-radius:6px}
+.crop-box{position:absolute;border:2px solid var(--primary);background:rgba(99,102,241,.12);border-radius:3px}
+#empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text2);text-align:center;padding:60px;flex:1}
+#empty-state .bi{font-size:48px;opacity:.35}
+#empty-state h3{font-size:15px;font-weight:600;color:var(--text)}
+#empty-state p{font-size:12px;line-height:1.7;max-width:260px}
 
-        .btn {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            padding: 0.5rem 0.85rem;
-            border-radius: var(--radius);
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.15s ease;
-            color: var(--text);
-        }
-        .btn:hover { 
-            background: var(--card-hover); 
-            border-color: var(--text-light);
-            transform: translateY(-1px);
-            box-shadow: var(--shadow);
-        }
-        .btn:active { transform: translateY(0); }
-        .btn.primary { 
-            background: var(--primary); 
-            color: white; 
-            border: none;
-            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
-        }
-        .btn.primary:hover { 
-            background: var(--primary-hover); 
-            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
-        }
-        .btn.active-mode {
-            background: rgba(59, 130, 246, 0.1);
-            border-color: var(--primary);
-            color: var(--primary);
-        }
+/* SIDEBAR */
+#sidebar{width:300px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.s-tabs{display:flex;border-bottom:1px solid var(--border)}
+.s-tab{flex:1;padding:10px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.3px}
+.s-tab.active{color:var(--primary);border-bottom-color:var(--primary);background:var(--primary-l)}
+.tc{display:none;flex-direction:column;flex:1;overflow:hidden}
+.tc.active{display:flex}
 
-        .toolbar-group {
-            display: flex;
-            align-items: center;
-            gap: 0.65rem;
-            border-right: 1px solid var(--border);
-            padding-right: 1.25rem;
-        }
-        .toolbar-group:last-child { border: none; }
+/* SLIDES LIST */
+#slides-list{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
+.slide-card{background:var(--surface2);border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer;position:relative;transition:all .2s;overflow:hidden}
+.slide-card:hover{border-color:var(--border2);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.slide-card.active{border-color:var(--primary);box-shadow:0 0 0 2px rgba(99,102,241,.2)}
+.slide-thumb-wrap{width:100%;background:#111;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.slide-thumb-wrap canvas{width:100%;height:100%;object-fit:contain}
+.slide-footer{padding:6px 8px;display:flex;justify-content:space-between;align-items:center}
+.slide-label{font-size:10px;font-weight:600;color:var(--text2);letter-spacing:.5px}
+.s-badge{font-size:9px;font-weight:600;padding:2px 6px;border-radius:99px;letter-spacing:.3px}
+.badge-crop{background:rgba(99,102,241,.15);color:#a5b4fc}
+.badge-title{background:rgba(16,185,129,.15);color:#6ee7b7}
+.badge-answer{background:rgba(245,158,11,.15);color:#fcd34d}
+.slide-acts{position:absolute;top:4px;right:4px;display:flex;gap:3px;opacity:0;transition:opacity .15s}
+.slide-card:hover .slide-acts{opacity:1}
+.ib{background:rgba(0,0,0,.65);border:none;border-radius:4px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;font-size:11px;transition:background .15s;backdrop-filter:blur(4px)}
+.ib:hover{background:rgba(0,0,0,.85)}
+.ib.red:hover{background:var(--danger)}
+.slides-footer{padding:8px;border-top:1px solid var(--border);display:flex;gap:5px}
+.slides-footer .btn{flex:1;justify-content:center;font-size:11px}
 
-        .page-navigation {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.875rem;
-            color: var(--text-light);
-            font-weight: 500;
-        }
-        
-        .page-input {
-            width: 45px;
-            text-align: center;
-            padding: 4px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            background: var(--card-bg);
-            color: var(--text);
-            font-weight: 600;
-        }
+/* SETTINGS */
+#settings-tab{flex:1;overflow-y:auto;padding:12px}
+.sg{margin-bottom:16px}
+.sg-title{font-size:10px;font-weight:700;color:var(--text2);letter-spacing:.8px;text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--border)}
+.sr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+.sr label{font-size:11px;font-weight:500;color:var(--text);white-space:nowrap}
+/* FIX 1: margin inputs wider, no overlap */
+input[type=number],input[type=text],select{padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface3);color:var(--text);font-size:11px;font-family:'Inter',sans-serif;outline:none;min-width:0}
+input[type=number]:focus,input[type=text]:focus,select:focus{border-color:var(--primary)}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button{opacity:.5;height:18px}
+select{cursor:pointer}
+input[type=range]{cursor:pointer;accent-color:var(--primary);width:100%}
+input[type=color]{padding:1px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface3);cursor:pointer;width:34px;height:26px}
+input[type=checkbox]{cursor:pointer;accent-color:var(--primary);width:14px;height:14px}
+.dim-row{display:flex;align-items:center;gap:5px}
+.dim-row input{width:64px;text-align:center}
+/* FIX 1: margin grid wider cells */
+.margin-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.margin-cell{display:flex;align-items:center;justify-content:space-between;background:var(--bg);padding:5px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);gap:6px}
+.margin-cell label{font-size:10px;color:var(--text2);white-space:nowrap;flex-shrink:0}
+.margin-cell input{width:52px;border:none;background:transparent;text-align:right;font-weight:600;font-size:12px;color:var(--text);padding:0}
 
-        #zoom-info {
-            font-variant-numeric: tabular-nums;
-            font-weight: 500;
-            font-size: 0.875rem;
-            color: var(--text-light);
-        }
+/* MODALS */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:500;backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-backdrop.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:24px;width:520px;max-width:95vw;box-shadow:var(--shadow);transform:scale(.95);transition:transform .2s}
+.modal-backdrop.open .modal{transform:scale(1)}
+.modal h2{font-size:15px;font-weight:700;margin-bottom:3px}
+.modal p{font-size:12px;color:var(--text2);margin-bottom:16px}
+.mg{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field.full{grid-column:1/-1}
+.field label{font-size:10px;font-weight:600;color:var(--text2);letter-spacing:.3px}
+.field input,.field select,.field textarea{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface3);color:var(--text);font-size:12px;font-family:'Inter',sans-serif;outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus{border-color:var(--primary)}
+.ma{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 
-        /* Main Layout */
-        main {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
+/* ANSWER KEY MODAL */
+.modal.wide{width:680px}
+.table-preview{width:100%;border-collapse:collapse;font-size:12px}
+.table-preview th{background:var(--surface3);padding:6px 8px;border:1px solid var(--border);font-weight:600;font-size:11px}
+.table-preview td{padding:3px;border:1px solid var(--border)}
+.table-preview td input,.table-preview th input{width:100%;border:none;background:transparent;color:var(--text);padding:4px 6px;font-size:12px;font-family:'Inter',sans-serif;outline:none;min-width:0}
+.table-preview th input{font-weight:600}
+.tc-controls{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
+.rows-per-slide-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 10px;background:var(--surface3);border-radius:var(--radius-sm);border:1px solid var(--border)}
+.rows-per-slide-row label{font-size:11px;font-weight:600;color:var(--text2)}
+.rows-per-slide-row input{width:58px;padding:5px 8px;text-align:center}
+.rps-note{font-size:10px;color:var(--text2);margin-left:auto}
 
-        #pdf-workspace {
-            flex: 1;
-            overflow: auto;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            background: var(--workspace-bg);
-            padding: 3rem;
-            scroll-behavior: smooth;
-        }
+/* NOTIF */
+#notif{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:9px 18px;border-radius:99px;z-index:9999;font-size:12px;font-weight:500;display:none;opacity:0;transition:opacity .25s,transform .25s;box-shadow:var(--shadow)}
+#notif.show{display:flex;opacity:1;transform:translateX(-50%) translateY(0)}
 
-        .canvas-container {
-            position: relative;
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
-            background: white;
-            height: fit-content;
-            border-radius: 4px;
-        }
+/* LOADING */
+#loading{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:2000;backdrop-filter:blur(8px);flex-direction:column;gap:14px}
+.spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading span{font-size:13px;font-weight:500;color:var(--text2)}
 
-        #pdf-canvas { display: block; border-radius: 4px; }
+/* QUALITY BADGE */
+.q-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;border:1px solid}
+.q-high{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3);color:#6ee7b7}
+.q-med{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.3);color:#fcd34d}
+.q-low{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#fca5a5}
 
-        #crop-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            cursor: crosshair;
-        }
-
-        /* Sidebar Styles */
-        #sidebar {
-            width: 380px;
-            background: var(--sidebar);
-            border-left: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .sidebar-header {
-            padding: 1.25rem;
-            border-bottom: 1px solid var(--border);
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 1rem;
-        }
-
-        #slides-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1.25rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
-        }
-
-        .slide-card {
-            background: var(--card-bg);
-            border-radius: var(--radius);
-            padding: 0.75rem;
-            border: 1px solid var(--border);
-            cursor: pointer;
-            position: relative;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .slide-card:hover { 
-            border-color: var(--text-light);
-            box-shadow: var(--shadow-md);
-            transform: translateY(-2px);
-        }
-        .slide-card.active { 
-            border-color: var(--primary); 
-            background: rgba(59, 130, 246, 0.05);
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
-        }
-        .slide-card:hover .delete-slide { opacity: 1; }
-        
-        .slide-thumb-container {
-            width: 100%;
-            background: #cbd5e1;
-            border: 1px solid var(--border);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            border-radius: 6px;
-        }
-
-        .slide-thumb-container canvas {
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .slide-meta {
-            margin-top: 0.75rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-            display: flex;
-            justify-content: space-between;
-            color: var(--text-light);
-        }
-
-        .delete-slide {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: #ef4444;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            cursor: pointer;
-            opacity: 0;
-            z-index: 10;
-            transition: opacity 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            box-shadow: var(--shadow);
-        }
-
-        /* Settings Panel */
-        #settings-panel {
-            padding: 1.25rem;
-            border-top: 1px solid var(--border);
-            background: var(--header);
-            font-size: 0.825rem;
-            overflow-y: auto;
-            max-height: 60%;
-        }
-        .settings-section-title {
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.7rem;
-            color: var(--text-light);
-            margin: 1.25rem 0 0.75rem 0;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .settings-section-title:first-child { margin-top: 0; }
-
-        .settings-row {
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-        .settings-row label { font-weight: 500; color: var(--text); white-space: nowrap; }
-        
-        .margin-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            width: 100%;
-            margin-bottom: 0.5rem;
-        }
-        .margin-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: var(--bg);
-            padding: 4px 10px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-        }
-        .margin-item label { font-size: 0.7rem; color: var(--text-light); }
-        .margin-item input { width: 45px; border: none; background: transparent; text-align: right; font-weight: 600; }
-
-        select, input[type="number"], input[type="text"], input[type="color"], input[type="range"] {
-            padding: 6px 8px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 0.875rem;
-            outline: none;
-            background: var(--card-bg);
-            color: var(--text);
-        }
-        input[type="range"] { padding: 0; cursor: pointer; }
-        input[type="color"] {
-            padding: 2px;
-            width: 40px;
-            height: 30px;
-            cursor: pointer;
-        }
-        select:focus, input:focus { border-color: var(--primary); }
-
-        .res-input { width: 70px; text-align: center; }
-
-        /* Crop Visual */
-        .crop-box {
-            position: absolute;
-            border: 2px solid var(--primary);
-            background: rgba(59, 130, 246, 0.1);
-            border-radius: 2px;
-            box-shadow: 0 0 0 1px rgba(255,255,255,0.5);
-        }
-
-        .notification {
-            position: fixed;
-            bottom: 2.5rem;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1e293b;
-            color: white;
-            padding: 0.65rem 1.25rem;
-            border-radius: 99px;
-            box-shadow: var(--shadow-md);
-            z-index: 1000;
-            display: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            animation: slideUp 0.3s ease-out;
-        }
-
-        @keyframes slideUp {
-            from { transform: translate(-50%, 100%); opacity: 0; }
-            to { transform: translate(-50%, 0); opacity: 1; }
-        }
-
-        #loading-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            font-weight: 600;
-            backdrop-filter: blur(4px);
-            flex-direction: column;
-            gap: 1rem;
-            color: white;
-        }
-        .spinner {
-            width: 30px;
-            height: 30px;
-            border: 3px solid rgba(255,255,255,0.3);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:9px}
+</style>
 </head>
 <body>
 
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-        <span>Processing Document...</span>
+<div id="loading"><div class="spinner"></div><span id="loading-msg">Processing…</span></div>
+<div id="notif"></div>
+
+<!-- TITLE MODAL -->
+<div class="modal-backdrop" id="modal-title">
+  <div class="modal">
+    <h2>✨ Title Slide</h2>
+    <p>Add a styled title slide to your presentation</p>
+    <div class="mg">
+      <div class="field full"><label>TITLE</label><input id="ts-title" placeholder="e.g. Chapter 3: Algebra"></div>
+      <div class="field full"><label>SUBTITLE</label><input id="ts-sub" placeholder="e.g. Solving Quadratic Equations"></div>
+      <div class="field"><label>STYLE</label>
+        <select id="ts-style">
+          <option value="gradient">Gradient</option>
+          <option value="minimal">Minimal</option>
+          <option value="dark">Dark Bold</option>
+          <option value="light">Light Clean</option>
+          <option value="accent">Accent Line</option>
+        </select>
+      </div>
+      <div class="field"><label>ACCENT COLOR</label><input type="color" id="ts-color" value="#6366f1" style="width:100%;height:36px"></div>
+      <div class="field"><label>FOOTER NOTE</label><input id="ts-footer" placeholder="e.g. Class 10 – 2025"></div>
+      <div class="field"><label>INSERT POSITION</label>
+        <select id="ts-pos">
+          <option value="0">At beginning</option>
+          <option value="-1">At end</option>
+          <option value="current">After current slide</option>
+        </select>
+      </div>
     </div>
-    <div id="notification" class="notification"></div>
+    <div class="ma">
+      <button class="btn" onclick="closeModal('modal-title')">Cancel</button>
+      <button class="btn primary" onclick="addTitleSlide()">Add Slide</button>
+    </div>
+  </div>
+</div>
 
-    <header>
-        <div class="toolbar-group">
-            <input type="file" id="pdf-upload" accept="application/pdf" style="display:none">
-            <button class="btn primary" onclick="document.getElementById('pdf-upload').click()">
-                📂 Open PDF
-            </button>
-            <button class="btn" id="btn-ui-mode" title="Toggle Website Dark Mode">🌙 UI Mode</button>
-        </div>
+<!-- ANSWER KEY MODAL -->
+<div class="modal-backdrop" id="modal-answer">
+  <div class="modal wide">
+    <h2>📋 Answer Key Table</h2>
+    <p>Build a formatted answer key — overflow rows are automatically split into multiple slides</p>
+    <div class="mg" style="margin-bottom:10px">
+      <div class="field"><label>SLIDE TITLE</label><input id="ak-title" value="Answer Key"></div>
+      <div class="field"><label>ACCENT COLOR</label><input type="color" id="ak-color" value="#6366f1" style="width:100%;height:36px"></div>
+      <div class="field"><label>TABLE STYLE</label>
+        <select id="ak-style">
+          <option value="classic">Classic</option>
+          <option value="zebra">Zebra Stripes</option>
+          <option value="colored-header">Colored Header</option>
+          <option value="minimal">Minimal</option>
+        </select>
+      </div>
+      <div class="field"><label>NUMBERING</label>
+        <select id="ak-numbering">
+          <option value="auto">Auto (1, 2, 3…)</option>
+          <option value="manual">Manual</option>
+        </select>
+      </div>
+    </div>
+    <!-- Rows per slide control -->
+    <div class="rows-per-slide-row">
+      <label>Max rows per slide</label>
+      <input type="number" id="ak-rps" value="10" min="1" max="50">
+      <span class="rps-note" id="ak-rps-note">Rows exceeding this will flow to a new slide automatically</span>
+    </div>
+    <div class="tc-controls">
+      <button class="btn" onclick="akAddRow()">+ Row</button>
+      <button class="btn" onclick="akAddCol()">+ Column</button>
+      <button class="btn danger" onclick="akDelRow()">− Row</button>
+      <button class="btn danger" onclick="akDelCol()">− Column</button>
+      <span id="ak-row-count" style="font-size:11px;color:var(--text2);margin-left:auto"></span>
+    </div>
+    <div style="overflow:auto;max-height:240px;border:1px solid var(--border);border-radius:var(--radius-sm)">
+      <table class="table-preview" id="ak-table"></table>
+    </div>
+    <div class="ma">
+      <button class="btn" onclick="closeModal('modal-answer')">Cancel</button>
+      <button class="btn primary" onclick="addAnswerKeySlide()">Add Slides</button>
+    </div>
+  </div>
+</div>
 
-        <div class="toolbar-group">
-            <button class="btn" id="prev-page" title="Previous Page">◀</button>
-            <div class="page-navigation">
-                <span>Page</span>
-                <input type="number" id="page-input" class="page-input" value="0">
-                <span id="page-total">of 0</span>
+<header>
+  <div class="logo">Slides<span>Studio</span></div>
+  <div class="hs">
+    <input type="file" id="pdf-upload" accept="application/pdf" style="display:none">
+    <button class="btn primary" onclick="document.getElementById('pdf-upload').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Open PDF
+    </button>
+  </div>
+  <div class="sep"></div>
+  <div class="hs">
+    <button class="btn" id="prev-page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="page-nav">
+      <input type="number" id="page-input" class="page-input" value="0">
+      <span id="page-total" style="white-space:nowrap">/ 0</span>
+    </div>
+    <button class="btn" id="next-page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></button>
+  </div>
+  <div class="sep"></div>
+  <div class="hs">
+    <button class="btn" id="zoom-out">−</button>
+    <span id="zoom-info">100%</span>
+    <button class="btn" id="zoom-in">+</button>
+    <button class="btn" id="zoom-fit" title="Fit to window">⊡</button>
+  </div>
+  <div class="sep"></div>
+  <div class="hs">
+    <button class="btn" id="btn-crop" title="Toggle crop (C)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 2 6 18 22 18"/><polyline points="2 6 18 6"/></svg>Crop
+    </button>
+    <button class="btn" id="btn-auto" title="Auto-slide per crop">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Auto
+    </button>
+    <button class="btn" id="btn-add">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Add Slide
+    </button>
+  </div>
+  <div class="sep"></div>
+  <div class="hs">
+    <button class="btn" onclick="openModal('modal-title')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="7" y1="10" x2="17" y2="10"/><line x1="7" y1="14" x2="13" y2="14"/></svg>Title
+    </button>
+    <button class="btn" onclick="openModal('modal-answer')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Answer Key
+    </button>
+  </div>
+  <div class="spacer"></div>
+  <!-- FIX 2: quality selector for export optimization -->
+  <div class="hs" style="gap:6px">
+    <span style="font-size:11px;color:var(--text2)">Quality</span>
+    <select id="export-quality" style="font-size:11px;padding:5px 7px">
+      <option value="0.92">High</option>
+      <option value="0.75" selected>Balanced ✓</option>
+      <option value="0.55">Compressed</option>
+      <option value="0.35">Small File</option>
+    </select>
+    <button class="btn primary" id="export-pdf">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PDF
+    </button>
+  </div>
+</header>
+
+<main>
+  <div id="workspace">
+    <div id="empty-state">
+      <div class="bi">📄</div>
+      <h3>No PDF loaded</h3>
+      <p>Open a PDF to start cropping content into slides. You can also insert Title or Answer Key slides without a PDF.</p>
+    </div>
+    <div id="canvas-wrapper" style="display:none">
+      <canvas id="pdf-canvas"></canvas>
+      <div id="crop-overlay"></div>
+    </div>
+  </div>
+
+  <aside id="sidebar">
+    <div class="s-tabs">
+      <div class="s-tab active" data-tab="slides">SLIDES</div>
+      <div class="s-tab" data-tab="settings">SETTINGS</div>
+    </div>
+    <div class="tc active" id="tab-slides">
+      <div id="slides-list"></div>
+      <div class="slides-footer">
+        <button class="btn" onclick="SM.createNewSlide()" style="justify-content:center">+ Blank</button>
+        <button class="btn" id="btn-dup" title="Duplicate slide (Ctrl+D)" style="padding:5px 9px">⧉</button>
+        <button class="btn danger" id="btn-del-all" style="padding:5px 9px" title="Clear all">🗑</button>
+      </div>
+    </div>
+    <div class="tc" id="tab-settings">
+      <div id="settings-tab">
+        <div class="sg">
+          <div class="sg-title">Canvas Resolution</div>
+          <div class="sr"><label>Preset</label>
+            <select id="s-preset">
+              <option value="1920:1080">16:9 HD</option>
+              <option value="1600:1200">4:3 SD</option>
+              <option value="1280:720">16:9 720p</option>
+              <option value="1080:1080">Square</option>
+              <option value="1080:1920">Story 9:16</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="sr"><label>Dimensions</label>
+            <div class="dim-row">
+              <input type="number" id="s-w" value="1920">
+              <span style="font-size:11px;color:var(--text2)">×</span>
+              <input type="number" id="s-h" value="1080">
             </div>
-            <button class="btn" id="next-page" title="Next Page">▶</button>
+          </div>
         </div>
-
-        <div class="toolbar-group">
-            <button class="btn" id="zoom-out" title="Zoom Out">−</button>
-            <span id="zoom-info" style="min-width: 60px; text-align: center;">100%</span>
-            <button class="btn" id="zoom-in" title="Zoom In">+</button>
+        <div class="sg">
+          <div class="sg-title">Margins (px)</div>
+          <div class="margin-grid">
+            <div class="margin-cell"><label>Top</label><input type="number" id="s-mt" value="60" min="0"></div>
+            <div class="margin-cell"><label>Right</label><input type="number" id="s-mr" value="60" min="0"></div>
+            <div class="margin-cell"><label>Bottom</label><input type="number" id="s-mb" value="60" min="0"></div>
+            <div class="margin-cell"><label>Left</label><input type="number" id="s-ml" value="60" min="0"></div>
+          </div>
         </div>
-
-        <div class="toolbar-group">
-            <button class="btn" id="btn-crop-mode" title="Toggle Crop Mode (C)">✂️ Crop Tool</button>
-            <button class="btn" id="btn-auto-mode" title="Automatically create a slide for every crop">🪄 Auto Slide</button>
-            <button class="btn" id="btn-add-as-new" title="Add current crops to a new slide">➕ Add Slide</button>
-        </div>
-
-        <div style="margin-left: auto;" class="toolbar-group">
-            <button class="btn" id="export-pdf" title="Export to PDF">🚀 Export PDF</button>
-        </div>
-    </header>
-
-    <main>
-        <div id="pdf-workspace">
-            <div id="canvas-wrapper" class="canvas-container">
-                <canvas id="pdf-canvas"></canvas>
-                <div id="crop-overlay"></div>
+        <div class="sg">
+          <div class="sg-title">Snippet Layout</div>
+          <div class="sr"><label>Width</label>
+            <div style="display:flex;align-items:center;gap:6px;flex:1">
+              <input type="range" id="s-scale" min="10" max="100" value="90" style="flex:1">
+              <span style="font-size:11px;color:var(--text2);min-width:28px;text-align:right" id="lbl-scale">90%</span>
             </div>
+          </div>
+          <div class="sr"><label>V-Align</label>
+            <select id="s-va"><option value="top">Top</option><option value="center" selected>Center</option><option value="bottom">Bottom</option></select>
+          </div>
+          <div class="sr"><label>H-Align</label>
+            <select id="s-ha"><option value="left">Left</option><option value="center" selected>Center</option><option value="right">Right</option></select>
+          </div>
+          <div class="sr"><label>Spacing</label><input type="number" id="s-sp" value="30" min="0" style="width:64px"></div>
         </div>
+        <div class="sg">
+          <div class="sg-title">Appearance</div>
+          <div class="sr"><label>Dark Slides</label><input type="checkbox" id="s-dark"></div>
+          <div class="sr"><label>Light BG</label><input type="color" id="s-clight" value="#ffffff"></div>
+          <div class="sr"><label>Dark BG</label><input type="color" id="s-cdark" value="#1a1a2e"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</main>
 
-        <aside id="sidebar">
-            <div class="sidebar-header">
-                <span>Slides Preview</span>
-                <button class="btn" style="padding: 4px 8px;" onclick="slideManager.createNewSlide()">+ New Slide</button>
-            </div>
-            <div id="slides-list"></div>
-            
-            <div id="settings-panel">
-                <div class="settings-section-title">Canvas Resolution</div>
-                <div class="settings-row">
-                    <label>Preset</label>
-                    <select id="setting-preset">
-                        <option value="1920:1080">16:9 (HD)</option>
-                        <option value="1600:1200">4:3 (SD)</option>
-                        <option value="1080:1080">1:1 (Square)</option>
-                        <option value="1080:1920">9:16 (Story)</option>
-                        <option value="custom">Custom</option>
-                    </select>
-                </div>
-                <div class="settings-row">
-                    <label>Dimensions</label>
-                    <div style="display:flex; align-items:center; gap:5px;">
-                        <input type="number" id="setting-width" value="1920" class="res-input">
-                        <span>×</span>
-                        <input type="number" id="setting-height" value="1080" class="res-input">
-                    </div>
-                </div>
+<script>
+const pdfjsLib = window['pdfjs-dist/build/pdf'];
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const REF_W = 1000;
 
-                <div class="settings-section-title">Margins (px)</div>
-                <div class="margin-grid">
-                    <div class="margin-item"><label>Top</label><input type="number" id="setting-margin-top" value="60" min="0"></div>
-                    <div class="margin-item"><label>Right</label><input type="number" id="setting-margin-right" value="60" min="0"></div>
-                    <div class="margin-item"><label>Bottom</label><input type="number" id="setting-margin-bottom" value="60" min="0"></div>
-                    <div class="margin-item"><label>Left</label><input type="number" id="setting-margin-left" value="60" min="0"></div>
-                </div>
+const st = {
+  pdfDoc:null, pageNum:1, scale:1.5,
+  isCropping:false, autoMode:false,
+  activeCrops:[], isDragging:false,
+  startPos:{x:0,y:0}, cropEl:null
+};
 
-                <div class="settings-section-title">Snippet Layout</div>
-                <div class="settings-row">
-                    <label>Width (%)</label>
-                    <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-                        <input type="range" id="setting-content-scale" min="10" max="100" value="90" style="flex:1">
-                        <span id="label-content-scale" style="width:30px; text-align:right;">90%</span>
-                    </div>
-                </div>
-                <div class="settings-row">
-                    <label>Vertical Align</label>
-                    <select id="setting-v-align" style="flex:1">
-                        <option value="top">Top</option>
-                        <option value="center" selected>Center</option>
-                        <option value="bottom">Bottom</option>
-                    </select>
-                </div>
-                <div class="settings-row">
-                    <label>Horizontal Align</label>
-                    <select id="setting-h-align" style="flex:1">
-                        <option value="left">Left</option>
-                        <option value="center" selected>Center</option>
-                        <option value="right">Right</option>
-                    </select>
-                </div>
-                <div class="settings-row">
-                    <label>Snippet Spacing</label>
-                    <input type="number" id="setting-spacing" value="30" min="0" style="width: 70px;">
-                </div>
+const pdfCanvas = document.getElementById('pdf-canvas');
+const pdfCtx = pdfCanvas.getContext('2d');
+const overlay = document.getElementById('crop-overlay');
 
-                <div class="settings-section-title">Appearance</div>
-                <div class="settings-row">
-                    <label>Dark Slides Mode</label>
-                    <input type="checkbox" id="setting-dark">
-                </div>
-                <div class="settings-row">
-                    <label>Light Theme Color</label>
-                    <input type="color" id="setting-color-light" value="#ffffff">
-                </div>
-                <div class="settings-row">
-                    <label>Dark Theme Color</label>
-                    <input type="color" id="setting-color-dark" value="#1a1a1a">
-                </div>
-            </div>
-        </aside>
-    </main>
+// ── RENDER PDF ──
+async function renderPage(n) {
+  if (!st.pdfDoc) return;
+  n = Math.max(1, Math.min(n, st.pdfDoc.numPages));
+  st.pageNum = n;
+  const page = await st.pdfDoc.getPage(n);
+  const vp = page.getViewport({scale: st.scale});
+  pdfCanvas.width = vp.width; pdfCanvas.height = vp.height;
+  overlay.style.width = vp.width+'px'; overlay.style.height = vp.height+'px';
+  overlay.style.pointerEvents = st.isCropping ? 'all' : 'none';
+  await page.render({canvasContext:pdfCtx, viewport:vp}).promise;
+  document.getElementById('page-input').value = n;
+  document.getElementById('page-total').textContent = '/ '+st.pdfDoc.numPages;
+  document.getElementById('zoom-info').textContent = Math.round(st.scale*100)+'%';
+  if (!st.isCropping) clearCrops();
+}
 
-    <script>
-        /**
-         * PDF RENDERING ENGINE
-         */
-        const pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+document.getElementById('pdf-upload').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  showLoad('Loading PDF…');
+  const r = new FileReader();
+  r.onload = async function() {
+    try {
+      st.pdfDoc = await pdfjsLib.getDocument(new Uint8Array(this.result)).promise;
+      st.pageNum = 1;
+      document.getElementById('empty-state').style.display = 'none';
+      document.getElementById('canvas-wrapper').style.display = 'block';
+      await renderPage(1);
+      notify('PDF loaded — '+st.pdfDoc.numPages+' pages');
+    } catch { notify('Error loading PDF'); }
+    hideLoad();
+  };
+  r.readAsArrayBuffer(f);
+};
 
-        const REFERENCE_WIDTH = 1000; 
+document.getElementById('prev-page').onclick = () => { if (st.pageNum>1) renderPage(st.pageNum-1); };
+document.getElementById('next-page').onclick = () => { if (st.pdfDoc && st.pageNum<st.pdfDoc.numPages) renderPage(st.pageNum+1); };
+document.getElementById('zoom-in').onclick  = () => { st.scale+=.25; renderPage(st.pageNum); };
+document.getElementById('zoom-out').onclick = () => { if (st.scale>.25) { st.scale-=.25; renderPage(st.pageNum); } };
+document.getElementById('zoom-fit').onclick = () => {
+  if (!st.pdfDoc) return;
+  const ws = document.getElementById('workspace');
+  st.pdfDoc.getPage(st.pageNum).then(p => {
+    const vp = p.getViewport({scale:1});
+    st.scale = Math.min((ws.clientWidth-64)/vp.width, 2);
+    renderPage(st.pageNum);
+  });
+};
+document.getElementById('page-input').onkeydown = e => { if (e.key==='Enter') renderPage(parseInt(e.target.value)||1); };
 
-        const state = {
-            pdfDoc: null,
-            pageNum: 1,
-            scale: 1.5,
-            isCropping: false,
-            autoSlideMode: false,
-            isUIDark: false,
-            activeCrops: [],
-            isDragging: false,
-            startPos: { x: 0, y: 0 },
-            currentCrop: null
-        };
+// ── CROP ──
+function clearCrops() { st.activeCrops=[]; overlay.innerHTML=''; }
 
-        const canvas = document.getElementById('pdf-canvas');
-        const ctx = canvas.getContext('2d');
-        const overlay = document.getElementById('crop-overlay');
+overlay.onmousedown = e => {
+  if (!st.isCropping) return;
+  st.isDragging=true;
+  const r = overlay.getBoundingClientRect();
+  st.startPos = {x:e.clientX-r.left, y:e.clientY-r.top};
+  st.cropEl = document.createElement('div'); st.cropEl.className='crop-box';
+  overlay.appendChild(st.cropEl);
+};
+window.onmousemove = e => {
+  if (!st.isDragging||!st.cropEl) return;
+  const r=overlay.getBoundingClientRect();
+  const cx=e.clientX-r.left, cy=e.clientY-r.top;
+  Object.assign(st.cropEl.style,{
+    left:Math.min(cx,st.startPos.x)+'px', top:Math.min(cy,st.startPos.y)+'px',
+    width:Math.abs(cx-st.startPos.x)+'px', height:Math.abs(cy-st.startPos.y)+'px'
+  });
+};
+window.onmouseup = () => {
+  if (!st.isDragging||!st.cropEl) return;
+  st.isDragging=false;
+  const r=st.cropEl.getBoundingClientRect(), or=overlay.getBoundingClientRect();
+  const crop={x:r.left-or.left, y:r.top-or.top, w:r.width, h:r.height, scale:st.scale};
+  if (crop.w>5 && crop.h>5) {
+    if (st.autoMode) { SM.addSingleCropAsNewSlide(crop); st.cropEl.remove(); notify('Slide auto-created ✨'); }
+    else st.activeCrops.push(crop);
+  } else st.cropEl.remove();
+  st.cropEl=null;
+};
 
-        async function renderPage(num) {
-            if (!state.pdfDoc) return;
-            num = Math.max(1, Math.min(num, state.pdfDoc.numPages));
-            state.pageNum = num;
+document.getElementById('btn-crop').onclick = e => {
+  st.isCropping=!st.isCropping;
+  e.currentTarget.classList.toggle('active',st.isCropping);
+  overlay.style.pointerEvents=st.isCropping?'all':'none';
+  if (!st.isCropping) clearCrops();
+};
+document.getElementById('btn-auto').onclick = e => {
+  st.autoMode=!st.autoMode;
+  e.currentTarget.classList.toggle('active',st.autoMode);
+  if (st.autoMode&&!st.isCropping) document.getElementById('btn-crop').click();
+};
+document.getElementById('btn-add').onclick = () => SM.addCropsToNewSlide();
 
-            const page = await state.pdfDoc.getPage(num);
-            const viewport = page.getViewport({ scale: state.scale });
+// ── SETTINGS ──
+function getSettings() {
+  return {
+    width:parseInt(document.getElementById('s-w').value)||1920,
+    height:parseInt(document.getElementById('s-h').value)||1080,
+    mt:parseInt(document.getElementById('s-mt').value)||0,
+    mb:parseInt(document.getElementById('s-mb').value)||0,
+    ml:parseInt(document.getElementById('s-ml').value)||0,
+    mr:parseInt(document.getElementById('s-mr').value)||0,
+    sp:parseInt(document.getElementById('s-sp').value)||0,
+    scale:parseInt(document.getElementById('s-scale').value)||90,
+    va:document.getElementById('s-va').value,
+    ha:document.getElementById('s-ha').value,
+    dark:document.getElementById('s-dark').checked,
+    cLight:document.getElementById('s-clight').value,
+    cDark:document.getElementById('s-cdark').value
+  };
+}
+document.getElementById('s-scale').oninput = e => {
+  document.getElementById('lbl-scale').textContent=e.target.value+'%';
+  SM.renderSlidesList();
+};
+document.getElementById('s-preset').onchange = e => {
+  if (e.target.value==='custom') return;
+  const [w,h]=e.target.value.split(':');
+  document.getElementById('s-w').value=w; document.getElementById('s-h').value=h;
+  SM.renderSlidesList();
+};
+['s-w','s-h','s-mt','s-mb','s-ml','s-mr','s-sp','s-va','s-ha','s-dark','s-clight','s-cdark'].forEach(id=>{
+  const el=document.getElementById(id); if(!el)return;
+  el.onchange=()=>{ if(id==='s-w'||id==='s-h') document.getElementById('s-preset').value='custom'; SM.renderSlidesList(); };
+});
 
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+// SIDEBAR TABS
+document.querySelectorAll('.s-tab').forEach(tab=>{
+  tab.onclick=()=>{
+    document.querySelectorAll('.s-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tc').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-'+tab.dataset.tab).classList.add('active');
+  };
+});
 
-            overlay.style.width = canvas.width + 'px';
-            overlay.style.height = canvas.height + 'px';
-            overlay.style.pointerEvents = state.isCropping ? 'all' : 'none';
+// ── LAYOUT ENGINE ──
+function calcLayout(slide, W, H, s) {
+  const sf=W/REF_W;
+  const mt=s.mt*sf,mb=s.mb*sf,ml=s.ml*sf,mr=s.mr*sf,sp=s.sp*sf;
+  const aw=W-(ml+mr), ah=H-(mt+mb);
+  const tw=aw*(s.scale/100);
+  let totalH=0;
+  const crops=slide.crops.map(c=>{
+    const dh=tw/(c.w/c.h); totalH+=dh; return{...c,dw:tw,dh};
+  });
+  if(crops.length>1) totalH+=(crops.length-1)*sp;
+  let sh=1;
+  if(totalH>ah){sh=ah/totalH;totalH=ah;}
+  let cy=mt;
+  if(s.va==='center') cy=mt+(ah-totalH)/2;
+  else if(s.va==='bottom') cy=H-mb-totalH;
+  return crops.map(c=>{
+    const fw=c.dw*sh, fh=c.dh*sh;
+    let fx=ml;
+    if(s.ha==='center') fx=ml+(aw-fw)/2;
+    else if(s.ha==='right') fx=W-mr-fw;
+    const res={dataUrl:c.dataUrl,x:fx,y:cy,w:fw,h:fh};
+    cy+=fh+sp*sh; return res;
+  });
+}
 
-            const renderCtx = { canvasContext: ctx, viewport: viewport };
-            await page.render(renderCtx).promise;
-            
-            document.getElementById('page-input').value = num;
-            document.getElementById('page-total').textContent = `of ${state.pdfDoc.numPages}`;
-            document.getElementById('zoom-info').textContent = `${Math.round(state.scale * 100)}%`;
-            
-            if (!state.isCropping) clearCrops();
-        }
+// ── TITLE SLIDE ──
+function renderTitleSlide(canvas, slide) {
+  const ctx=canvas.getContext('2d'), W=canvas.width, H=canvas.height;
+  const {title='',sub='',footer='',style='gradient',color='#6366f1'}=slide.titleData||{};
+  function h2rgb(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgba(${r},${g},${b},${a??1})`;}
+  function darker(hex){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgb(${Math.max(0,r-50)},${Math.max(0,g-50)},${Math.max(0,b-50)})`;}
+  ctx.clearRect(0,0,W,H);
+  let textColor='#ffffff';
+  if(style==='gradient'){
+    const g=ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,darker(color));g.addColorStop(1,color);
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    ctx.globalAlpha=.1;ctx.fillStyle='#fff';
+    ctx.beginPath();ctx.arc(W*.85,H*.15,H*.5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(W*.05,H*.85,H*.3,0,Math.PI*2);ctx.fill();
+    ctx.globalAlpha=1;
+  } else if(style==='minimal'){
+    ctx.fillStyle='#f9fafb';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle=color;ctx.fillRect(0,H*.04,W*.005,H*.88);
+    textColor='#111827';
+  } else if(style==='dark'){
+    ctx.fillStyle='#0d0d14';ctx.fillRect(0,0,W,H);
+    const g2=ctx.createLinearGradient(0,0,W*.7,H);
+    g2.addColorStop(0,h2rgb(color,.3));g2.addColorStop(1,'transparent');
+    ctx.fillStyle=g2;ctx.fillRect(0,0,W,H);
+  } else if(style==='light'){
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle=h2rgb(color,.07);ctx.fillRect(0,H*.6,W,H*.4);
+    textColor='#111827';
+  } else if(style==='accent'){
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle=color;ctx.fillRect(0,0,W*.018,H);
+    textColor='#111827';
+  }
+  const ts=Math.min(W/11,H/5.5);
+  ctx.font=`bold ${ts}px Inter,sans-serif`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=textColor;
+  const titleY=sub?H*.4:H*.5;
+  ctx.fillText(title||'Title',W/2,titleY,W*.82);
+  // accent bar
+  ctx.fillStyle=color;
+  const lw=Math.min(W*.07,110);
+  ctx.fillRect(W/2-lw/2,sub?H*.5:H*.57,lw,H*.005);
+  if(sub){
+    ctx.font=`500 ${ts*.46}px Inter,sans-serif`;
+    ctx.globalAlpha=.7;ctx.fillStyle=textColor;
+    ctx.fillText(sub,W/2,H*.58,W*.72);
+    ctx.globalAlpha=1;
+  }
+  if(footer){
+    ctx.font=`${ts*.28}px Inter,sans-serif`;
+    ctx.globalAlpha=.45;ctx.fillStyle=textColor;
+    ctx.fillText(footer,W/2,H*.88,W*.7);
+    ctx.globalAlpha=1;
+  }
+}
 
-        document.getElementById('page-input').onkeydown = (e) => {
-            if (e.key === 'Enter') {
-                const target = parseInt(e.target.value);
-                if (!isNaN(target)) renderPage(target);
-            }
-        };
+// ── ANSWER KEY SLIDE ──
+function renderAnswerKeySlide(canvas, slide) {
+  const ctx=canvas.getContext('2d'), W=canvas.width, H=canvas.height;
+  const {title='Answer Key',color='#6366f1',style='classic',headers=[],rows=[[]],slideIndex=0,totalSlides=1}=slide.akData||{};
+  function h2rgb(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgba(${r},${g},${b},${a??1})`;}
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=color;ctx.fillRect(0,0,W,H*.012);
+  const titleH=H*.13;
+  const ts=Math.min(W/16,H/8);
+  ctx.font=`bold ${ts}px Inter,sans-serif`;
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle='#1a1a2e';
+  let displayTitle=title;
+  if(totalSlides>1) displayTitle+=` (${slideIndex+1}/${totalSlides})`;
+  ctx.fillText(displayTitle,W/2,titleH/2+H*.01,W*.85);
+  const pad=W*.055, tableX=pad, tableY=titleH+H*.02;
+  const tableW=W-pad*2;
+  const cols=headers.length||1, dataRows=rows.length||0;
+  const totalRows=dataRows+1;
+  const maxRowH=H*.1, minRowH=H*.04;
+  const availH=H-tableY-H*.05;
+  const rowH=Math.max(minRowH,Math.min(maxRowH,availH/totalRows));
+  // header
+  ctx.fillStyle=style==='minimal'?'#f3f4f6':color;
+  ctx.fillRect(tableX,tableY,tableW,rowH);
+  const hfs=Math.min(rowH*.42,W/42);
+  ctx.font=`bold ${hfs}px Inter,sans-serif`;
+  ctx.textBaseline='middle';
+  headers.forEach((h,i)=>{
+    ctx.fillStyle=style==='minimal'?'#1a1a2e':'#ffffff';
+    ctx.textAlign='center';
+    ctx.fillText(h,tableX+(tableW/cols)*i+(tableW/cols)/2,tableY+rowH/2,(tableW/cols)-8);
+  });
+  // data rows
+  const cfs=Math.min(rowH*.38,W/46);
+  ctx.font=`${cfs}px Inter,sans-serif`;
+  rows.forEach((row,ri)=>{
+    const ry=tableY+(ri+1)*rowH;
+    if(style==='zebra'&&ri%2===0){ctx.fillStyle='#f8fafc';ctx.fillRect(tableX,ry,tableW,rowH);}
+    else{ctx.fillStyle='#ffffff';ctx.fillRect(tableX,ry,tableW,rowH);}
+    row.forEach((cell,ci)=>{
+      ctx.fillStyle='#1a1a2e';ctx.textAlign='center';
+      ctx.fillText(cell||'',tableX+(tableW/cols)*ci+(tableW/cols)/2,ry+rowH/2,(tableW/cols)-8);
+    });
+  });
+  // grid lines
+  ctx.strokeStyle=style==='minimal'?'#e5e7eb':h2rgb(color,.2);
+  ctx.lineWidth=1;
+  for(let r=0;r<=totalRows;r++){const y=tableY+r*rowH;ctx.beginPath();ctx.moveTo(tableX,y);ctx.lineTo(tableX+tableW,y);ctx.stroke();}
+  for(let c=0;c<=cols;c++){const x=tableX+c*(tableW/cols);ctx.beginPath();ctx.moveTo(x,tableY);ctx.lineTo(x,tableY+totalRows*rowH);ctx.stroke();}
+  ctx.strokeStyle=style==='minimal'?'#d1d5db':color;
+  ctx.lineWidth=2;
+  ctx.strokeRect(tableX,tableY,tableW,totalRows*rowH);
+}
 
-        document.getElementById('pdf-upload').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            document.getElementById('loading-overlay').style.display = 'flex';
-            const reader = new FileReader();
-            reader.onload = async function() {
-                try {
-                    const typedarray = new Uint8Array(this.result);
-                    state.pdfDoc = await pdfjsLib.getDocument(typedarray).promise;
-                    state.pageNum = 1;
-                    await renderPage(state.pageNum);
-                    showNotification("PDF Loaded Successfully");
-                } catch(err) {
-                    showNotification("Error loading PDF");
-                }
-                document.getElementById('loading-overlay').style.display = 'none';
-            };
-            reader.readAsArrayBuffer(file);
-        });
+// ── MASTER RENDER ──
+// FIX 2: smart quality – use lower resolution for thumbnails, respect export quality setting
+async function renderSlideToCanvas(canvas, slide, settings, qual=0.85) {
+  const ctx=canvas.getContext('2d');
+  if(slide.type==='title'){renderTitleSlide(canvas,slide);return;}
+  if(slide.type==='answer'){renderAnswerKeySlide(canvas,slide);return;}
+  ctx.fillStyle=settings.dark?settings.cDark:settings.cLight;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  const layout=calcLayout(slide,canvas.width,canvas.height,settings);
+  for(const item of layout){
+    const img=await loadImg(item.dataUrl);
+    if(settings.dark){
+      const tmp=document.createElement('canvas');tmp.width=img.width;tmp.height=img.height;
+      const tc=tmp.getContext('2d');tc.filter='invert(1) hue-rotate(180deg)';tc.drawImage(img,0,0);
+      ctx.drawImage(tmp,item.x,item.y,item.w,item.h);
+    } else ctx.drawImage(img,item.x,item.y,item.w,item.h);
+  }
+}
 
-        document.getElementById('prev-page').onclick = () => { if (state.pageNum > 1) renderPage(state.pageNum - 1); };
-        document.getElementById('next-page').onclick = () => { if (state.pageNum < state.pdfDoc?.numPages) renderPage(state.pageNum + 1); };
-        document.getElementById('zoom-in').onclick = () => { state.scale += 0.25; renderPage(state.pageNum); };
-        document.getElementById('zoom-out').onclick = () => { if (state.scale > 0.5) { state.scale -= 0.25; renderPage(state.pageNum); } };
+function loadImg(url){
+  return new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=url;});
+}
 
-        document.getElementById('btn-ui-mode').onclick = (e) => {
-            state.isUIDark = !state.isUIDark;
-            document.body.classList.toggle('dark-ui', state.isUIDark);
-            e.target.classList.toggle('active-mode', state.isUIDark);
-            slideManager.renderSlidesList();
-        };
+// ── SLIDE MANAGER ──
+const SM = {
+  slides:[], activeIdx:-1,
 
-        /**
-         * CROP SYSTEM
-         */
-        function clearCrops() {
-            state.activeCrops = [];
-            overlay.innerHTML = '';
-        }
+  createNewSlide(){
+    const s={id:Date.now(),type:'crop',crops:[]};
+    this.slides.push(s); this.activeIdx=this.slides.length-1;
+    this.renderSlidesList(); return s;
+  },
+  addCropsToNewSlide(){
+    if(!st.activeCrops.length){notify('Draw a crop box first!');return;}
+    this.createNewSlide(); this._addActiveCrops();
+  },
+  addSingleCropAsNewSlide(crop){
+    const d=this._extractCrop(crop);
+    const s={id:Date.now(),type:'crop',crops:[d]};
+    this.slides.push(s); this.activeIdx=this.slides.length-1;
+    this.renderSlidesList();
+  },
+  _extractCrop(crop){
+    // FIX 2: cap crop canvas resolution to avoid huge dataURLs
+    const maxDim=1400;
+    const scale=Math.min(1,maxDim/Math.max(crop.w,crop.h));
+    const tw=Math.round(crop.w*scale), th=Math.round(crop.h*scale);
+    const tmp=document.createElement('canvas'); tmp.width=tw; tmp.height=th;
+    tmp.getContext('2d').drawImage(pdfCanvas,crop.x,crop.y,crop.w,crop.h,0,0,tw,th);
+    return{dataUrl:tmp.toDataURL('image/jpeg',0.88),w:crop.w,h:crop.h};
+  },
+  _addActiveCrops(){
+    if(this.activeIdx===-1) this.createNewSlide();
+    st.activeCrops.forEach(c=>this.slides[this.activeIdx].crops.push(this._extractCrop(c)));
+    clearCrops(); this.renderSlidesList();
+  },
+  deleteSlide(i){
+    this.slides.splice(i,1);
+    if(this.activeIdx>=this.slides.length) this.activeIdx=this.slides.length-1;
+    this.renderSlidesList();
+  },
+  duplicateSlide(){
+    if(this.activeIdx===-1)return;
+    const copy=JSON.parse(JSON.stringify(this.slides[this.activeIdx]));
+    copy.id=Date.now();
+    this.slides.splice(this.activeIdx+1,0,copy);
+    this.activeIdx++;
+    this.renderSlidesList(); notify('Slide duplicated');
+  },
+  moveSlide(i,dir){
+    const ni=i+dir;
+    if(ni<0||ni>=this.slides.length)return;
+    [this.slides[i],this.slides[ni]]=[this.slides[ni],this.slides[i]];
+    if(this.activeIdx===i) this.activeIdx=ni;
+    else if(this.activeIdx===ni) this.activeIdx=i;
+    this.renderSlidesList();
+  },
+  async renderSlidesList(){
+    const container=document.getElementById('slides-list');
+    const settings=getSettings();
+    const aspect=settings.width/settings.height;
+    container.innerHTML='';
+    for(let i=0;i<this.slides.length;i++){
+      const slide=this.slides[i];
+      const card=document.createElement('div');
+      card.className='slide-card'+(i===this.activeIdx?' active':'');
+      card.onclick=()=>{this.activeIdx=i;this.renderSlidesList();};
+      // thumb — use low-res for speed
+      const tw_=document.createElement('div');tw_.className='slide-thumb-wrap';
+      const tc_=document.createElement('canvas');
+      tc_.width=260;tc_.height=Math.round(260/aspect);
+      await renderSlideToCanvas(tc_,slide,settings,0.7);
+      tw_.appendChild(tc_);
+      // actions
+      const acts=document.createElement('div');acts.className='slide-acts';
+      const up=document.createElement('button');up.className='ib';up.title='Move up';up.textContent='↑';
+      up.onclick=e=>{e.stopPropagation();this.moveSlide(i,-1);};
+      const dn=document.createElement('button');dn.className='ib';dn.title='Move down';dn.textContent='↓';
+      dn.onclick=e=>{e.stopPropagation();this.moveSlide(i,1);};
+      const del=document.createElement('button');del.className='ib red';del.title='Delete';del.textContent='×';
+      del.onclick=e=>{e.stopPropagation();this.deleteSlide(i);};
+      acts.append(up,dn,del);
+      // footer
+      const foot=document.createElement('div');foot.className='slide-footer';
+      const lbl=document.createElement('span');lbl.className='slide-label';lbl.textContent='SLIDE '+(i+1);
+      const badge=document.createElement('span');
+      badge.className='s-badge '+(slide.type==='title'?'badge-title':slide.type==='answer'?'badge-answer':'badge-crop');
+      badge.textContent=slide.type==='title'?'TITLE':slide.type==='answer'?'ANSWER KEY':'CROP';
+      foot.append(lbl,badge);
+      card.append(tw_,acts,foot); container.appendChild(card);
+    }
+  }
+};
 
-        overlay.onmousedown = (e) => {
-            if (!state.isCropping) return;
-            state.isDragging = true;
-            const rect = overlay.getBoundingClientRect();
-            state.startPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-            state.currentCrop = document.createElement('div');
-            state.currentCrop.className = 'crop-box';
-            overlay.appendChild(state.currentCrop);
-        };
+document.getElementById('btn-dup').onclick=()=>SM.duplicateSlide();
+document.getElementById('btn-del-all').onclick=()=>{
+  if(confirm('Delete all slides?')){SM.slides=[];SM.activeIdx=-1;SM.renderSlidesList();}
+};
 
-        window.onmousemove = (e) => {
-            if (!state.isDragging || !state.currentCrop) return;
-            const rect = overlay.getBoundingClientRect();
-            const curX = e.clientX - rect.left;
-            const curY = e.clientY - rect.top;
-            const x = Math.min(curX, state.startPos.x);
-            const y = Math.min(curY, state.startPos.y);
-            const w = Math.abs(curX - state.startPos.x);
-            const h = Math.abs(curY - state.startPos.y);
-            state.currentCrop.style.left = x + 'px';
-            state.currentCrop.style.top = y + 'px';
-            state.currentCrop.style.width = w + 'px';
-            state.currentCrop.style.height = h + 'px';
-        };
+// ── MODALS ──
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-backdrop').forEach(m=>{
+  m.onclick=e=>{if(e.target===m)m.classList.remove('open');};
+});
 
-        window.onmouseup = () => {
-            if (!state.isDragging || !state.currentCrop) return;
-            state.isDragging = false;
-            const rect = state.currentCrop.getBoundingClientRect();
-            const overlayRect = overlay.getBoundingClientRect();
-            const crop = {
-                x: (rect.left - overlayRect.left),
-                y: (rect.top - overlayRect.top),
-                w: rect.width,
-                h: rect.height,
-                scale: state.scale
-            };
-            if (crop.w > 5 && crop.h > 5) {
-                if (state.autoSlideMode) {
-                    slideManager.addSingleCropAsNewSlide(crop);
-                    state.currentCrop.remove();
-                    showNotification("Slide Auto-Created ✨");
-                } else {
-                    state.activeCrops.push(crop);
-                }
-            } else {
-                state.currentCrop.remove();
-            }
-            state.currentCrop = null;
-        };
+// ── TITLE SLIDE ──
+function addTitleSlide(){
+  const title=document.getElementById('ts-title').value.trim()||'Title';
+  const sub=document.getElementById('ts-sub').value.trim();
+  const footer=document.getElementById('ts-footer').value.trim();
+  const style=document.getElementById('ts-style').value;
+  const color=document.getElementById('ts-color').value;
+  const posVal=document.getElementById('ts-pos').value;
+  const slide={id:Date.now(),type:'title',crops:[],titleData:{title,sub,footer,style,color}};
+  let pos=posVal==='0'?0:posVal==='-1'?SM.slides.length:SM.activeIdx>=0?SM.activeIdx+1:SM.slides.length;
+  SM.slides.splice(pos,0,slide); SM.activeIdx=pos;
+  SM.renderSlidesList(); closeModal('modal-title'); notify('Title slide added ✨');
+}
 
-        document.getElementById('btn-crop-mode').onclick = (e) => {
-            state.isCropping = !state.isCropping;
-            e.target.classList.toggle('active-mode', state.isCropping);
-            overlay.style.pointerEvents = state.isCropping ? 'all' : 'none';
-            if (!state.isCropping) clearCrops();
-        };
+// ── ANSWER KEY — with row-overflow algorithm ──
+let akRows=5, akCols=4;
 
-        document.getElementById('btn-auto-mode').onclick = (e) => {
-            state.autoSlideMode = !state.autoSlideMode;
-            e.target.classList.toggle('active-mode', state.autoSlideMode);
-            if (state.autoSlideMode && !state.isCropping) document.getElementById('btn-crop-mode').click();
-        };
+function akBuild(){
+  const tbl=document.getElementById('ak-table');
+  const existing={};
+  tbl.querySelectorAll('th input').forEach(i=>existing['h,'+i.dataset.c]=i.value);
+  tbl.querySelectorAll('td input').forEach(i=>existing[i.dataset.r+','+i.dataset.c]=i.value);
+  tbl.innerHTML='';
+  const rps=parseInt(document.getElementById('ak-rps').value)||10;
+  // header
+  const thead=tbl.createTHead(); const hr=thead.insertRow();
+  for(let c=0;c<akCols;c++){
+    const th=document.createElement('th');
+    const inp=document.createElement('input');
+    inp.value=existing['h,'+c]!==undefined?existing['h,'+c]:(c===0?'Q#':c===1?'Answer':c===2?'Marks':'Notes');
+    inp.dataset.c=c; inp.dataset.r='h';
+    th.appendChild(inp); hr.appendChild(th);
+  }
+  // body
+  const tbody=tbl.createTBody();
+  for(let r=0;r<akRows;r++){
+    const row=tbody.insertRow();
+    for(let c=0;c<akCols;c++){
+      const td=row.insertCell(); td.dataset.r=r; td.dataset.c=c;
+      const inp=document.createElement('input');
+      inp.value=existing[r+','+c]!==undefined?existing[r+','+c]:(c===0?(r+1)+'':'');
+      inp.dataset.r=r; inp.dataset.c=c;
+      td.appendChild(inp);
+    }
+  }
+  // update count display
+  const slides=Math.ceil(akRows/rps);
+  document.getElementById('ak-row-count').textContent=
+    `${akRows} rows → ${slides} slide${slides>1?'s':''}`;
+}
 
-        /**
-         * LAYOUT ENGINE
-         */
-        function calculateSlideLayout(slide, slideW, slideH, settings) {
-            const scaleFactor = slideW / REFERENCE_WIDTH;
-            
-            // Safe Area Margins
-            const mTop = settings.marginTop * scaleFactor;
-            const mBottom = settings.marginBottom * scaleFactor;
-            const mLeft = settings.marginLeft * scaleFactor;
-            const mRight = settings.marginRight * scaleFactor;
-            const spacing = settings.spacing * scaleFactor;
-            
-            const availableW = slideW - (mLeft + mRight);
-            const availableH = slideH - (mTop + mBottom);
+function akAddRow(){akRows++;akBuild();}
+function akDelRow(){if(akRows>1){akRows--;akBuild();}}
+function akAddCol(){akCols++;akBuild();}
+function akDelCol(){if(akCols>1){akCols--;akBuild();}}
+document.getElementById('ak-rps').oninput=()=>akBuild();
 
-            // Calculate width based on requested content scale
-            const contentWidthPercent = settings.contentScale / 100;
-            const targetSnippetW = availableW * contentWidthPercent;
+document.querySelector('[onclick="openModal(\'modal-answer\')"]').addEventListener('click',()=>{
+  akRows=8; akCols=4; akBuild();
+});
 
-            let totalContentH = 0;
-            const crops = slide.crops.map(crop => {
-                const aspect = crop.w / crop.h;
-                const drawW = targetSnippetW;
-                const drawH = targetSnippetW / aspect;
-                totalContentH += drawH;
-                return { ...crop, drawW, drawH };
-            });
+function addAnswerKeySlide(){
+  const tbl=document.getElementById('ak-table');
+  const title=document.getElementById('ak-title').value||'Answer Key';
+  const color=document.getElementById('ak-color').value;
+  const style=document.getElementById('ak-style').value;
+  const rps=Math.max(1,parseInt(document.getElementById('ak-rps').value)||10);
 
-            // Add spacing gaps
-            if (crops.length > 1) totalContentH += (crops.length - 1) * spacing;
+  const headers=[];
+  tbl.querySelectorAll('thead th input').forEach(i=>headers.push(i.value));
+  const allRows=[];
+  tbl.querySelectorAll('tbody tr').forEach(tr=>{
+    const row=[]; tr.querySelectorAll('td input').forEach(i=>row.push(i.value)); allRows.push(row);
+  });
 
-            // Global shrink only if total height overflows available safe area
-            let groupShrink = 1;
-            if (totalContentH > availableH && crops.length > 0) {
-                groupShrink = availableH / totalContentH;
-                totalContentH = availableH;
-            }
+  // FIX 3: split rows into chunks
+  const chunks=[];
+  for(let i=0;i<allRows.length;i+=rps) chunks.push(allRows.slice(i,i+rps));
+  if(chunks.length===0) chunks.push([]);
 
-            // Vertical Alignment Origin
-            let currentY = mTop;
-            if (settings.vAlign === 'center') {
-                currentY = mTop + (availableH - totalContentH) / 2;
-            } else if (settings.vAlign === 'bottom') {
-                currentY = slideH - mBottom - totalContentH;
-            }
+  const totalSlides=chunks.length;
+  const insertPos=SM.activeIdx>=0?SM.activeIdx+1:SM.slides.length;
 
-            return crops.map(c => {
-                const finalW = c.drawW * groupShrink;
-                const finalH = c.drawH * groupShrink;
-                
-                // Horizontal Alignment Calculation
-                let finalX = mLeft;
-                if (settings.hAlign === 'center') {
-                    finalX = mLeft + (availableW - finalW) / 2;
-                } else if (settings.hAlign === 'right') {
-                    finalX = slideW - mRight - finalW;
-                }
+  chunks.forEach((chunk,idx)=>{
+    const slide={
+      id:Date.now()+idx, type:'answer', crops:[],
+      akData:{title,color,style,headers,rows:chunk,slideIndex:idx,totalSlides}
+    };
+    SM.slides.splice(insertPos+idx,0,slide);
+  });
+  SM.activeIdx=insertPos+totalSlides-1;
+  SM.renderSlidesList();
+  closeModal('modal-answer');
+  notify(`Answer key added — ${totalSlides} slide${totalSlides>1?'s':''} 📋`);
+}
 
-                const res = {
-                    dataUrl: c.dataUrl,
-                    x: finalX,
-                    y: currentY,
-                    w: finalW,
-                    h: finalH
-                };
-                currentY += finalH + (spacing * groupShrink);
-                return res;
-            });
-        }
+// ── EXPORT (FIX 2: respects quality selector, uses downscaled canvas) ──
+async function exportToPDF(){
+  if(!SM.slides.length){notify('No slides to export!');return;}
+  const qual=parseFloat(document.getElementById('export-quality').value)||0.75;
+  showLoad('Exporting slides…');
+  const {jsPDF}=window.jspdf;
+  const s=getSettings();
+  // FIX 2: scale down export canvas for compressed modes to reduce file size
+  const scaleFactor = qual>=0.9?1:qual>=0.7?0.85:qual>=0.5?0.7:0.55;
+  const eW=Math.round(s.width*scaleFactor), eH=Math.round(s.height*scaleFactor);
+  const doc=new jsPDF({
+    orientation:s.width>s.height?'landscape':'portrait',
+    unit:'pt', format:[s.width,s.height]
+  });
+  for(let i=0;i<SM.slides.length;i++){
+    if(i>0) doc.addPage([s.width,s.height]);
+    const fc=document.createElement('canvas'); fc.width=eW; fc.height=eH;
+    // Render at export scale
+    const es={...s,width:eW,height:eH};
+    await renderSlideToCanvas(fc,SM.slides[i],es,qual);
+    doc.addImage(fc.toDataURL('image/jpeg',qual),'JPEG',0,0,s.width,s.height);
+  }
+  doc.save('presentation.pdf');
+  hideLoad(); notify('Exported '+SM.slides.length+' slides 🚀');
+}
+document.getElementById('export-pdf').onclick=exportToPDF;
 
-        async function renderSlideToCanvas(canvas, slide, settings) {
-            const ctx = canvas.getContext('2d');
-            const { isDark, colorLight, colorDark } = settings;
-            ctx.fillStyle = isDark ? colorDark : colorLight;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+// ── UTILS ──
+function showLoad(msg){document.getElementById('loading-msg').textContent=msg||'Processing…';document.getElementById('loading').style.display='flex';}
+function hideLoad(){document.getElementById('loading').style.display='none';}
+function notify(msg){
+  const el=document.getElementById('notif');
+  el.textContent=msg;el.style.display='flex';el.classList.add('show');
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.style.display='none',300);},2800);
+}
 
-            const layout = calculateSlideLayout(slide, canvas.width, canvas.height, settings);
-            for (const item of layout) {
-                const img = await loadImage(item.dataUrl);
-                if (isDark) {
-                    const temp = document.createElement('canvas');
-                    temp.width = img.width; temp.height = img.height;
-                    const tCtx = temp.getContext('2d');
-                    tCtx.filter = 'invert(1) hue-rotate(180deg)';
-                    tCtx.drawImage(img, 0, 0);
-                    ctx.drawImage(temp, item.x, item.y, item.w, item.h);
-                } else {
-                    ctx.drawImage(img, item.x, item.y, item.w, item.h);
-                }
-            }
-        }
+// ── KEYBOARD ──
+window.onkeydown=e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+  if(e.key.toLowerCase()==='c') document.getElementById('btn-crop').click();
+  if(e.key==='ArrowRight'||e.key==='ArrowDown') document.getElementById('next-page').click();
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp') document.getElementById('prev-page').click();
+  if(e.key==='+'||e.key==='=') document.getElementById('zoom-in').click();
+  if(e.key==='-') document.getElementById('zoom-out').click();
+  if((e.ctrlKey||e.metaKey)&&e.key==='d'){e.preventDefault();SM.duplicateSlide();}
+};
 
-        function loadImage(url) {
-            return new Promise(r => { const img = new Image(); img.onload = () => r(img); img.src = url; });
-        }
-
-        /**
-         * SLIDE MANAGER
-         */
-        const slideManager = {
-            slides: [],
-            activeSlideIndex: -1,
-
-            getSettings() {
-                return {
-                    width: parseInt(document.getElementById('setting-width').value) || 1920,
-                    height: parseInt(document.getElementById('setting-height').value) || 1080,
-                    marginTop: parseInt(document.getElementById('setting-margin-top').value) || 0,
-                    marginBottom: parseInt(document.getElementById('setting-margin-bottom').value) || 0,
-                    marginLeft: parseInt(document.getElementById('setting-margin-left').value) || 0,
-                    marginRight: parseInt(document.getElementById('setting-margin-right').value) || 0,
-                    spacing: parseInt(document.getElementById('setting-spacing').value) || 0,
-                    contentScale: parseInt(document.getElementById('setting-content-scale').value) || 90,
-                    vAlign: document.getElementById('setting-v-align').value,
-                    hAlign: document.getElementById('setting-h-align').value,
-                    isDark: document.getElementById('setting-dark').checked,
-                    colorLight: document.getElementById('setting-color-light').value,
-                    colorDark: document.getElementById('setting-color-dark').value
-                };
-            },
-
-            createNewSlide() {
-                const newSlide = { id: Date.now(), crops: [] };
-                this.slides.push(newSlide);
-                this.activeSlideIndex = this.slides.length - 1;
-                this.renderSlidesList();
-            },
-
-            addCropsToNewSlide() {
-                if (state.activeCrops.length === 0) {
-                    showNotification("Draw a crop box first!");
-                    return;
-                }
-                this.createNewSlide();
-                this.addCurrentCropsToSlide();
-            },
-
-            addSingleCropAsNewSlide(crop) {
-                const data = this.extractCropData(crop);
-                const newSlide = { id: Date.now(), crops: [data] };
-                this.slides.push(newSlide);
-                this.activeSlideIndex = this.slides.length - 1;
-                this.renderSlidesList();
-            },
-
-            extractCropData(crop) {
-                const tempCanvas = document.createElement('canvas');
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCanvas.width = crop.w; tempCanvas.height = crop.h;
-                tempCtx.drawImage(canvas, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
-                return { dataUrl: tempCanvas.toDataURL('image/jpeg', 0.8), w: crop.w, h: crop.h };
-            },
-
-            addCurrentCropsToSlide() {
-                if (this.activeSlideIndex === -1) this.createNewSlide();
-                state.activeCrops.forEach(crop => {
-                    this.slides[this.activeSlideIndex].crops.push(this.extractCropData(crop));
-                });
-                clearCrops();
-                this.renderSlidesList();
-            },
-
-            deleteSlide(index, event) {
-                event.stopPropagation();
-                this.slides.splice(index, 1);
-                if (this.activeSlideIndex >= this.slides.length) this.activeSlideIndex = this.slides.length - 1;
-                this.renderSlidesList();
-            },
-
-            async renderSlidesList() {
-                const container = document.getElementById('slides-list');
-                const settings = this.getSettings();
-                container.innerHTML = '';
-                for (let i = 0; i < this.slides.length; i++) {
-                    const slide = this.slides[i];
-                    const card = document.createElement('div');
-                    card.className = `slide-card ${i === this.activeSlideIndex ? 'active' : ''}`;
-                    card.onclick = () => { this.activeSlideIndex = i; this.renderSlidesList(); };
-
-                    const thumbContainer = document.createElement('div');
-                    thumbContainer.className = 'slide-thumb-container';
-                    const thumbCanvas = document.createElement('canvas');
-                    const aspect = settings.width / settings.height;
-                    thumbCanvas.width = 300; thumbCanvas.height = 300 / aspect;
-                    await renderSlideToCanvas(thumbCanvas, slide, settings);
-                    thumbContainer.appendChild(thumbCanvas);
-
-                    const meta = document.createElement('div');
-                    meta.className = 'slide-meta';
-                    meta.innerHTML = `<span>SLIDE ${i + 1}</span><span>${slide.crops.length} ITEMS</span>`;
-
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'delete-slide';
-                    delBtn.innerHTML = '&times;';
-                    delBtn.onclick = (e) => this.deleteSlide(i, e);
-
-                    card.appendChild(delBtn); card.appendChild(thumbContainer); card.appendChild(meta);
-                    container.appendChild(card);
-                }
-            }
-        };
-
-        // Resolution and UI Sync
-        document.getElementById('setting-content-scale').oninput = (e) => {
-            document.getElementById('label-content-scale').textContent = e.target.value + '%';
-            slideManager.renderSlidesList();
-        };
-
-        document.getElementById('setting-preset').onchange = (e) => {
-            const val = e.target.value;
-            if (val === 'custom') return;
-            const [w, h] = val.split(':');
-            document.getElementById('setting-width').value = w;
-            document.getElementById('setting-height').value = h;
-            slideManager.renderSlidesList();
-        };
-
-        ['setting-width', 'setting-height', 'setting-margin-top', 'setting-margin-bottom', 'setting-margin-left', 'setting-margin-right', 'setting-spacing', 'setting-v-align', 'setting-h-align', 'setting-dark', 'setting-color-light', 'setting-color-dark'].forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.onchange = () => {
-                if (id.includes('width') || id.includes('height')) document.getElementById('setting-preset').value = 'custom';
-                slideManager.renderSlidesList();
-            }
-        });
-
-        document.getElementById('btn-add-as-new').onclick = () => slideManager.addCropsToNewSlide();
-
-        /**
-         * EXPORT ENGINE
-         */
-        async function exportToPDF() {
-            if (slideManager.slides.length === 0) { showNotification("No slides to export!"); return; }
-            document.getElementById('loading-overlay').style.display = 'flex';
-            const { jsPDF } = window.jspdf;
-            const settings = slideManager.getSettings();
-            const slideWidth = settings.width;
-            const slideHeight = settings.height;
-
-            const doc = new jsPDF({
-                orientation: slideWidth > slideHeight ? 'landscape' : 'portrait',
-                unit: 'pt',
-                format: [slideWidth, slideHeight]
-            });
-
-            for (let i = 0; i < slideManager.slides.length; i++) {
-                const slide = slideManager.slides[i];
-                if (i > 0) doc.addPage([slideWidth, slideHeight]);
-                const activeBG = settings.isDark ? settings.colorDark : settings.colorLight;
-                doc.setFillColor(activeBG);
-                doc.rect(0, 0, slideWidth, slideHeight, 'F');
-
-                const layout = calculateSlideLayout(slide, slideWidth, slideHeight, settings);
-                for (const item of layout) {
-                    let imgData = item.dataUrl;
-                    if (settings.isDark) {
-                        const img = await loadImage(item.dataUrl);
-                        const temp = document.createElement('canvas');
-                        temp.width = img.width; temp.height = img.height;
-                        const tCtx = temp.getContext('2d');
-                        tCtx.filter = 'invert(1) hue-rotate(180deg)';
-                        tCtx.drawImage(img, 0, 0);
-                        imgData = temp.toDataURL('image/jpeg', 0.8);
-                    }
-                    doc.addImage(imgData, 'JPEG', item.x, item.y, item.w, item.h);
-                }
-            }
-
-            doc.save('presentation.pdf');
-            document.getElementById('loading-overlay').style.display = 'none';
-            showNotification("Slides Exported! 🚀");
-        }
-
-        document.getElementById('export-pdf').onclick = exportToPDF;
-
-        function showNotification(msg) {
-            const el = document.getElementById('notification');
-            el.innerText = msg;
-            el.style.display = 'block';
-            el.style.opacity = '1';
-            setTimeout(() => { 
-                el.style.opacity = '0'; 
-                setTimeout(() => { el.style.display = 'none'; }, 300); 
-            }, 2500);
-        }
-
-        window.onkeydown = (e) => {
-            if (e.target.tagName === 'INPUT') return;
-            if (e.key.toLowerCase() === 'c') document.getElementById('btn-crop-mode').click();
-            if (e.key === 'ArrowRight') document.getElementById('next-page').click();
-            if (e.key === 'ArrowLeft') document.getElementById('prev-page').click();
-        }
-
-        slideManager.createNewSlide();
-    </script>
+SM.createNewSlide();
+</script>
 </body>
 </html>
